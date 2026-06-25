@@ -139,8 +139,6 @@ export default function Sidebar({
   const educationLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
-      if (!ORIGINAL_LAYERS.has(lower)) return false;
-
       return (
         lower.includes("education") ||
         lower.includes("school") ||
@@ -152,8 +150,6 @@ export default function Sidebar({
   const healthLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
-      if (!ORIGINAL_LAYERS.has(lower)) return false;
-
       return lower.includes("health");
     });
   }, [layers]);
@@ -161,8 +157,6 @@ export default function Sidebar({
   const policeLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
-      if (!ORIGINAL_LAYERS.has(lower)) return false;
-
       return lower.includes("police");
     });
   }, [layers]);
@@ -170,8 +164,6 @@ export default function Sidebar({
   const riverLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
-      if (!ORIGINAL_LAYERS.has(lower)) return false;
-
       return lower.includes("river");
     });
   }, [layers]);
@@ -204,10 +196,6 @@ export default function Sidebar({
         return false;
       }
       
-      // If it is not one of the original 33 layers, it is a custom uploaded layer.
-      // Any uploaded layer should show in Other Layers!
-      if (!ORIGINAL_LAYERS.has(lower)) return true;
-
       const isPolice = lower.includes("police");
       const isHealth = lower.includes("health");
       const isRiver = lower.includes("river");
@@ -226,6 +214,14 @@ export default function Sidebar({
         lower.includes("kotwali") ||
         lower.includes("thans")
       );
+
+      if (isPolice || isHealth || isRiver || isEducation || isAdministrative) {
+        return false;
+      }
+
+      // If it is not one of the original 33 layers, it is a custom uploaded layer.
+      // Any uploaded layer should show in Other Layers!
+      if (!ORIGINAL_LAYERS.has(lower)) return true;
 
       return !isAdministrative && !isEducation && !isHealth && !isPolice && !isRiver;
     });
