@@ -4,6 +4,7 @@ import { MongoClient } from "mongodb";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import proj4 from "proj4";
+import zlib from "zlib";
 
 dotenv.config();
 
@@ -142,19 +143,20 @@ async function fetchAndProcessFeatures(force = false) {
       const db = client.db(MONGODB_DB);
       const collection = db.collection(MONGODB_COLLECTION);
       
-      console.log("Fetching GIS features from MongoDB Atlas...");
-      const rawFeatures = await collection.find({}).toArray();
-      const currentDocCount = rawFeatures.length;
+      console.log("Fetching GIS features from MongoDB Atlas via cursor to save memory...");
+      const cursor = collection.find({});
       
       const features: any[] = [];
       let processedCount = 0;
+      let totalDocCount = 0;
       const yieldEventLoop = () => new Promise(resolve => setImmediate(resolve));
       
-      for (let i = 0; i < rawFeatures.length; i++) {
-        const doc = rawFeatures[i];
+      while (await cursor.hasNext()) {
+        const doc = await cursor.next();
+        if (!doc) continue;
+        totalDocCount++;
+        
         // Determine layer name robustly:
-        // If it's a layer container with multiple features, doc.name is the layer name.
-        // Otherwise, if it's an individual feature document, prioritize its layer/Layer property over its individual feature name.
         let layerName = "Unassigned";
         if (Array.isArray(doc.features)) {
           layerName = doc.name || doc.Layer || doc.layer || "Unassigned";
@@ -238,16 +240,24 @@ async function fetchAndProcessFeatures(force = false) {
         }
       }
       
-      cachedFeaturesResponse = {
+      console.log(`Successfully processed ${features.length} features. Compressing to Gzip to save memory and network bandwidth...`);
+      const jsonString = JSON.stringify({
         success: true,
         count: features.length,
         features
+      });
+      
+      const gzipBuffer = zlib.gzipSync(jsonString);
+      
+      cachedFeaturesResponse = {
+        gzip: gzipBuffer,
+        count: features.length
       };
       
-      cachedDocCount = currentDocCount;
+      cachedDocCount = totalDocCount;
       lastCacheTime = Date.now();
       
-      console.log(`Successfully fetched and cached ${features.length} features across ${currentDocCount} layers.`);
+      console.log(`Successfully fetched, cached and compressed ${features.length} features across ${totalDocCount} layers. Gzip size: ${(gzipBuffer.length / (1024 * 1024)).toFixed(2)} MB.`);
       return cachedFeaturesResponse;
     } catch (error) {
       console.error("Error fetching and processing GIS features:", error);
@@ -270,8 +280,21 @@ fetchAndProcessFeatures().catch((err) => {
 app.get("/api/features", async (req, res) => {
   try {
     const force = req.query.force === "true";
-    const data = await fetchAndProcessFeatures(force);
-    res.json(data);
+    const cacheData = await fetchAndProcessFeatures(force);
+    
+    // Check if client supports Gzip compression
+    const acceptEncoding = req.headers["accept-encoding"] || "";
+    if (acceptEncoding.includes("gzip")) {
+      res.set({
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json"
+      });
+      res.send(cacheData.gzip);
+    } else {
+      const decompressed = zlib.gunzipSync(cacheData.gzip);
+      res.set("Content-Type", "application/json");
+      res.send(decompressed);
+    }
   } catch (error: any) {
     res.status(500).json({
       success: false,
