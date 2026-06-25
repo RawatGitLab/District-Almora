@@ -10,6 +10,9 @@ dotenv.config();
 const UTM_44N = "+proj=utm +zone=44 +ellps=WGS84 +datum=WGS84 +units=m +no_defs";
 const WGS_84 = "+proj=longlat +datum=WGS84 +no_defs";
 
+// Pre-compile the coordinate converter to avoid parsing projection strings for every coordinate conversion
+const coordinateConverter = proj4(UTM_44N, WGS_84);
+
 // Helper to recursively project coordinates from UTM Zone 44N to WGS84 (lat/lng)
 function projectCoordinates(coordinates: any): any {
   if (!Array.isArray(coordinates)) {
@@ -22,7 +25,7 @@ function projectCoordinates(coordinates: any): any {
     // Check if coordinates are in UTM range (e.g. > 1000)
     if (Math.abs(x) > 1000 || Math.abs(y) > 1000) {
       try {
-        const [lng, lat] = proj4(UTM_44N, WGS_84, [x, y]);
+        const [lng, lat] = coordinateConverter.forward([x, y]);
         if (isFinite(lng) && isFinite(lat)) {
           return coordinates.length === 3 ? [lng, lat, coordinates[2]] : [lng, lat];
         }
@@ -144,8 +147,11 @@ async function fetchAndProcessFeatures(force = false) {
       const currentDocCount = rawFeatures.length;
       
       const features: any[] = [];
+      let processedCount = 0;
+      const yieldEventLoop = () => new Promise(resolve => setImmediate(resolve));
       
-      rawFeatures.forEach((doc, docIdx) => {
+      for (let i = 0; i < rawFeatures.length; i++) {
+        const doc = rawFeatures[i];
         // Determine layer name robustly:
         // If it's a layer container with multiple features, doc.name is the layer name.
         // Otherwise, if it's an individual feature document, prioritize its layer/Layer property over its individual feature name.
@@ -157,18 +163,19 @@ async function fetchAndProcessFeatures(force = false) {
         }
 
         if (layerName === "Health-Ayurvedic-Centres") {
-          return;
+          continue;
         }
         
         if (Array.isArray(doc.features)) {
-          doc.features.forEach((feat: any, featIdx: number) => {
+          for (let j = 0; j < doc.features.length; j++) {
+            const feat = doc.features[j];
             const projectedGeom = feat.geometry ? {
               ...feat.geometry,
               coordinates: projectCoordinates(feat.geometry.coordinates)
             } : null;
             
             features.push({
-              id: feat.id || `${doc._id.toString()}-${featIdx}`,
+              id: feat.id || `${doc._id.toString()}-${j}`,
               type: "Feature",
               geometry: projectedGeom,
               properties: {
@@ -177,7 +184,12 @@ async function fetchAndProcessFeatures(force = false) {
                 name: feat.properties?.name || feat.properties?.Name || feat.properties?.village_name || feat.properties?.Village_Name || ""
               }
             });
-          });
+            
+            processedCount++;
+            if (processedCount % 500 === 0) {
+              await yieldEventLoop();
+            }
+          }
         } else if (doc.type === "Feature" || (doc.geometry && doc.properties)) {
           const projectedGeom = doc.geometry ? {
             ...doc.geometry,
@@ -194,6 +206,11 @@ async function fetchAndProcessFeatures(force = false) {
               name: doc.properties?.name || doc.properties?.Name || doc.properties?.village_name || doc.properties?.Village_Name || ""
             }
           });
+          
+          processedCount++;
+          if (processedCount % 500 === 0) {
+            await yieldEventLoop();
+          }
         } else {
           const geometry = doc.geometry || (doc.coordinates ? { type: doc.geom_type || "Point", coordinates: doc.coordinates } : null);
           if (geometry) {
@@ -213,8 +230,13 @@ async function fetchAndProcessFeatures(force = false) {
               }
             });
           }
+          
+          processedCount++;
+          if (processedCount % 500 === 0) {
+            await yieldEventLoop();
+          }
         }
-      });
+      }
       
       cachedFeaturesResponse = {
         success: true,
