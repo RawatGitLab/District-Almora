@@ -1,5 +1,5 @@
 {
-  "name": "Almora GIS Viewer",
+  "name": "Geography of District Almora for Planners and Administrators",
   "description": "A full-stack geographic information system (GIS) application to fetch, explore, and visualize geographical boundaries, landmarks, rivers, blocks, and villages of Almora.",
   "requestFramePermissions": [],
   "majorCapabilities": [
