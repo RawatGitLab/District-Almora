@@ -78,6 +78,12 @@ const MUNICIPAL_WARD_LAYERS = new Set([
   "vivekanandpuri"
 ]);
 
+const NAGAR_NIGAM_LAYERS = new Set([
+  "stp_stations",
+  "town-drainage",
+  "stp-area"
+]);
+
 export default function Sidebar({
   layers,
   toggleLayer,
@@ -171,7 +177,7 @@ export default function Sidebar({
   const nagarNigamLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
-      return lower.includes("nagar-nigam") || lower.includes("nagar nigam");
+      return lower.includes("nagar-nigam") || lower.includes("nagar nigam") || NAGAR_NIGAM_LAYERS.has(lower);
     });
   }, [layers]);
 
@@ -187,7 +193,7 @@ export default function Sidebar({
       const lower = layer.name.toLowerCase();
       
       // If it belongs to Nagar Nigam, filter it out from otherLayers
-      if (lower.includes("nagar-nigam") || lower.includes("nagar nigam")) {
+      if (lower.includes("nagar-nigam") || lower.includes("nagar nigam") || NAGAR_NIGAM_LAYERS.has(lower)) {
         return false;
       }
 
