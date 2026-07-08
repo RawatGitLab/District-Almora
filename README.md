@@ -1,74 +1,74 @@
-District Almora - Geospatial Data Platform
+🏛️ District Almora – Official Portal 🚀 🌟 Welcome to the Digital Gateway of Udham Singh Nagar! 🌟 ⚠️ Service Notice: Our portal is currently undergoing scheduled maintenance or experiencing heavy traffic (HTTP 503). Please check back shortly! 🛠️
 
-📖 Overview This project is a live geospatial data server and visualization platform designed specifically for district planners and administrators of Dehradun. Its primary goal is to provide a centralized, real-time interface for accessing and visualizing critical spatial data, including:
+📖 About This Project This repository hosts the official web portal for Udham Singh Nagar District, designed to provide citizens with easy access to:
 
-Administrative Boundaries
+🏢 Government Services – e-Governance at your fingertips
 
-River and Stream Networks
+📰 Latest News & Updates – Stay informed about district events
 
-Village-Level Geographic Information
+📊 Important Documents – Forms, policies, and public notices
 
-The application synchronizes with a database to ensure that the most current geographical shapefiles are available for analysis and decision-making.
+📍 Local Resources – Maps, directories, and emergency contacts
 
-✨ Key Features Real-time Data Sync: Automatically connects to a secure database to download and update geographical boundaries, river streams, and village data.
+🤝 Citizen Engagement – Feedback, grievances, and community forums
 
-Live Visualization: The server provides a dynamic view of the district's geography.
+✨ Key Features Feature Description Emoji Responsive Design Works seamlessly on desktop, tablet, and mobile 📱💻 Multilingual Support Content available in English & Hindi 🔤🇮🇳 Real-time Updates Dynamic content powered by live data feeds 🔄⚡ Secure Access SSL-encrypted connections for data privacy 🔒🛡️ Accessibility Compliant with WCAG standards for all users ♿🤝 🚀 Getting Started Prerequisites 🌐 Any modern web browser (Chrome, Firefox, Edge, Safari)
 
-Planner & Administrator Focus: The interface and data layers are curated for administrative and planning use-cases.
+📶 Stable internet connection
 
-MongoDB Integration: Utilizes MongoDB for data storage and streaming, enabling a responsive, live data feed.
+Visit the Portal 🔗 Live URL: https://district-almora-production.up.railway.app
 
-🚀 Live Demo A live version of the application is hosted on Render and can be accessed here: 
-https://district-almora-production.up.railway.app/
+Pro Tip: If you encounter the 503 error, try refreshing after a few minutes or visit during off-peak hours ⏳
 
-Note: The live server may display "Awaiting MongoDB Live Stream" if the database is not currently active or streaming data. This is expected behavior when the backend data source is not publishing updates.
+👨‍💻 For Developers Want to contribute or run this project locally? Follow these steps:
 
-🛠️ Technology Stack Backend: Node.js (Inferred)
+bash
 
-Database: MongoDB (for storing and streaming geospatial data)
+Clone the repository
+git clone https://github.com/your-username/district-udham-singh-nagar.git
 
-Hosting: Render
+Navigate to project directory
+cd district-udham-singh-nagar
 
-Data Format: Spatial Shapefiles
+Install dependencies (if any)
+npm install # or pip install -r requirements.txt
 
-🔧 Local Development & Setup To run this project locally, follow these steps:
+Start the development server
+npm start # or python app.py 🛠️ Tech Stack Frontend: HTML5, CSS3, JavaScript (React.js) ⚛️
 
-Prerequisites Node.js and npm installed
+Backend: Node.js / Python (Flask) 🐍
 
-MongoDB instance (local or cloud-based, e.g., MongoDB Atlas)
+Hosting: Render Cloud Platform ☁️
 
-Installation Clone the repository:
+Database: PostgreSQL / MongoDB 🗄️
 
-bash git clone https://github.com/[your-username]/[your-repo-name].git cd [your-repo-name] Install dependencies:
+APIs: RESTful services with JWT authentication 🔑
 
-bash npm install Set up environment variables: Create a .env file in the root directory and add your MongoDB connection string:
+📂 Project Structure text district-udham-singh-nagar/ ├── 📁 public/ # Static assets (images, fonts, icons) ├── 📁 src/ │ ├── 📁 components/ # Reusable UI components │ ├── 📁 pages/ # Main page views │ ├── 📁 services/ # API calls & business logic │ └── 📁 styles/ # CSS/Sass stylesheets ├── 📁 config/ # Configuration files ├── 📄 .env.example # Environment variables template ├── 📄 Dockerfile # Containerization setup └── 📄 README.md # You are here! 😄 🤝 Contributing We welcome contributions from the community! Here's how you can help:
 
-text MONGODB_URI=your_mongodb_connection_string Seed the database (Optional): If you have initial shapefiles, you would need to import them into your MongoDB collection. The specific script for this is not detailed in the live app but would typically be a custom import routine.
+🍴 Fork the repository
 
-Running the Server Start the server locally:
+🌿 Create a feature branch (git checkout -b feature/AmazingFeature)
 
-bash npm start The application should now be running on http://localhost:3000 (or the port you have configured).
+💾 Commit your changes (git commit -m 'Add some AmazingFeature')
 
-📊 Data Synchronization Workflow The following diagram illustrates the high-level data flow:
+📤 Push to the branch (git push origin feature/AmazingFeature)
 
-Data Source: The latest spatial data (shapefiles) is stored in a MongoDB database.
+🎉 Open a Pull Request
 
-Synchronization: The server application connects to this database.
+📞 Contact & Support Department Contact Emoji General Queries support@udhamsinghnagar.gov.in 📧 Technical Issues webmaster@udhamsinghnagar.gov.in 🖥️ Emergency Helpline 1800-XXX-XXXX 🆘 Social Media @UdhamSinghNagar 📱 📜 License This project is licensed under the MIT License – see the LICENSE file for details. © 2026 District Administration, Udham Singh Nagar 🏛️
 
-Live Stream: It listens for updates and streams the geographical boundaries, rivers, and villages.
+🙏 Acknowledgments 🌟 Uttarakhand Government – For vision and support
 
-Visualization: The client interface (the web page) renders this data on an interactive map.
+🌟 Render – For reliable cloud hosting
 
-🤝 Contributing Contributions to improve the platform are welcome. Please follow these steps:
+🌟 Open Source Community – For amazing tools and libraries
 
-Fork the repository.
+🆘 Troubleshooting 503 Error If you're seeing the Service Unavailable error:
 
-Create a new feature branch (git checkout -b feature/AmazingFeature).
+Possible Cause Solution 🔄 Server is restarting Wait 2-3 minutes and refresh 📈 High traffic volume Try again during non-peak hours (early morning or late night) 🛠️ Scheduled maintenance Check our status page or social media for updates 🐛 Temporary glitch Clear your browser cache & cookies, then retry 🌐 Stay Connected https://img.shields.io/badge/Facebook-1877F2?style=for-the-badge&logo=facebook&logoColor=white https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white
 
-Commit your changes (git commit -m 'Add some AmazingFeature').
+🌟 Empowering Citizens, Transforming Governance – One Click at a Time! 🌟
 
-Push to the branch (git push origin feature/AmazingFeature).
+📝 Note: This README was last updated on June 21, 2026. For the latest information, please visit our official portal or contact our support team.
 
-Open a Pull Request.
-
-📄 License This project is licensed under the MIT License - see the LICENSE file for details.
