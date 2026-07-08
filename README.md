@@ -1,4 +1,4 @@
-District Dehradun - Geospatial Data Platform
+District Almora - Geospatial Data Platform
 
 📖 Overview This project is a live geospatial data server and visualization platform designed specifically for district planners and administrators of Dehradun. Its primary goal is to provide a centralized, real-time interface for accessing and visualizing critical spatial data, including:
 
@@ -19,7 +19,7 @@ Planner & Administrator Focus: The interface and data layers are curated for adm
 MongoDB Integration: Utilizes MongoDB for data storage and streaming, enabling a responsive, live data feed.
 
 🚀 Live Demo A live version of the application is hosted on Render and can be accessed here: 
-
+https://district-almora-production.up.railway.app/
 
 Note: The live server may display "Awaiting MongoDB Live Stream" if the database is not currently active or streaming data. This is expected behavior when the backend data source is not publishing updates.
 
