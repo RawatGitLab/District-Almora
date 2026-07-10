@@ -1,6 +1,6 @@
-🏛️ District Almora – Official Portal 🚀 🌟 Welcome to the Digital Gateway of Udham Singh Nagar! 🌟 ⚠️ Service Notice: Our portal is currently undergoing scheduled maintenance or experiencing heavy traffic (HTTP 503). Please check back shortly! 🛠️
+🏛️ District Almora – Official Portal 🚀 🌟 Welcome to the Digital Gateway of Almora! 🌟 ⚠️ Service Notice: Our portal is currently undergoing scheduled maintenance or experiencing heavy traffic (HTTP 503). Please check back shortly! 🛠️
 
-📖 About This Project This repository hosts the official web portal for Udham Singh Nagar District, designed to provide citizens with easy access to:
+📖 About This Project This repository hosts the official web portal for ALmora District, designed to provide citizens with easy access to:
 
 🏢 Government Services – e-Governance at your fingertips
 
@@ -44,7 +44,7 @@ Database: PostgreSQL / MongoDB 🗄️
 
 APIs: RESTful services with JWT authentication 🔑
 
-📂 Project Structure text district-udham-singh-nagar/ ├── 📁 public/ # Static assets (images, fonts, icons) ├── 📁 src/ │ ├── 📁 components/ # Reusable UI components │ ├── 📁 pages/ # Main page views │ ├── 📁 services/ # API calls & business logic │ └── 📁 styles/ # CSS/Sass stylesheets ├── 📁 config/ # Configuration files ├── 📄 .env.example # Environment variables template ├── 📄 Dockerfile # Containerization setup └── 📄 README.md # You are here! 😄 🤝 Contributing We welcome contributions from the community! Here's how you can help:
+📂 Project Structure text district-Almora/ ├── 📁 public/ # Static assets (images, fonts, icons) ├── 📁 src/ │ ├── 📁 components/ # Reusable UI components │ ├── 📁 pages/ # Main page views │ ├── 📁 services/ # API calls & business logic │ └── 📁 styles/ # CSS/Sass stylesheets ├── 📁 config/ # Configuration files ├── 📄 .env.example # Environment variables template ├── 📄 Dockerfile # Containerization setup └── 📄 README.md # You are here! 😄 🤝 Contributing We welcome contributions from the community! Here's how you can help:
 
 🍴 Fork the repository
 
@@ -56,7 +56,7 @@ APIs: RESTful services with JWT authentication 🔑
 
 🎉 Open a Pull Request
 
-📞 Contact & Support Department Contact Emoji General Queries support@udhamsinghnagar.gov.in 📧 Technical Issues webmaster@udhamsinghnagar.gov.in 🖥️ Emergency Helpline 1800-XXX-XXXX 🆘 Social Media @UdhamSinghNagar 📱 📜 License This project is licensed under the MIT License – see the LICENSE file for details. © 2026 District Administration, Udham Singh Nagar 🏛️
+📞 Contact & Support Department Contact Emoji General Queries varunrawatmailbox2507@gmail.com 📧 Technical Issues varunrawatmailbox2507@gmail.com 🖥️ Emergency Helpline 1800-XXX-XXXX 🆘 Social Media @varunrawatmailbox2507@gmail.com 📱 📜 License This project is licensed under the MIT License – see the LICENSE file for details. © 2026 District Administration, Almora 🏛️
 
 🙏 Acknowledgments 🌟 Uttarakhand Government – For vision and support
 
