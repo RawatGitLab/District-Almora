@@ -79,7 +79,6 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
-| `GEMINI_API_KEY` | Required for Gemini AI API calls |
 | `APP_URL` | The URL where the app is hosted (used for self-referential links/callbacks) |
 
 ### Available Scripts
