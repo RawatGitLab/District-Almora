@@ -1,10 +1,17 @@
 import { MongoClient } from "mongodb";
+import dotenv from "dotenv";
 
-const MONGODB_URI = "mongodb+srv://varunrawatmailbox2507_db_user:GYVPiF8LG4HIbsSF@cluster0.8xfepsq.mongodb.net/?appName=Cluster0";
-const MONGODB_DB = "Shapefile";
-const MONGODB_COLLECTION = "Almora";
+dotenv.config();
+
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB;
+const MONGODB_COLLECTION = process.env.MONGODB_COLLECTION;
 
 async function run() {
+  if (!MONGODB_URI || !MONGODB_DB || !MONGODB_COLLECTION) {
+    console.error("Required database environment variables (MONGODB_URI, MONGODB_DB, MONGODB_COLLECTION) are missing.");
+    process.exit(1);
+  }
   const client = new MongoClient(MONGODB_URI);
   await client.connect();
   const db = client.db(MONGODB_DB);
