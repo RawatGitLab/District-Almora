@@ -26,7 +26,6 @@ This repository hosts the **Almora GIS Viewer** — a web application for visual
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS |
 | Mapping | Leaflet, proj4 |
-| AI | Google Gemini (`@google/genai`) |
 | Backend | Node.js, Express, tsx |
 | Database | MongoDB |
 | Animation / UI | Motion, Lucide React |
@@ -54,7 +53,6 @@ District-Almora/
 
 - [Node.js](https://nodejs.org/) (LTS recommended)
 - npm
-- A [Gemini API key](https://aistudio.google.com/apikey)
 
 ### Installation
 
