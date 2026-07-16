@@ -112,72 +112,324 @@ app.get("/api/debug", async (req, res) => {
   }
 });
 
-let cachedFeaturesResponse: any = null;
-let isFetching = false;
-let fetchPromise: Promise<any> | null = null;
-let cachedDocCount = 0;
-let lastCacheTime = 0;
-const CACHE_TTL = 30000; // 30 seconds TTL fallback
-
-async function fetchAndProcessFeatures(force = false) {
-  const now = Date.now();
-  let dbChanged = false;
+function determineGeometryType(layerName: string): "point" | "linestring" | "polygon" | "unknown" {
+  const lower = layerName.toLowerCase();
   
+  // Boundaries & Areas
+  if (
+    lower.includes("area") || 
+    lower.includes("boundary") || 
+    lower.includes("district") || 
+    lower.includes("block") || 
+    lower.includes("tehsil") || 
+    lower.includes("tahsil") ||
+    lower.includes("kotwali") ||
+    lower.includes("thans")
+  ) {
+    return "polygon";
+  }
+  
+  // Linear features, drainage, roads, rivers
+  if (
+    lower.includes("road") || 
+    lower.includes("canal") || 
+    lower.includes("water") || 
+    lower.includes("drainage") || 
+    lower.includes("linear") || 
+    lower.includes("river") || 
+    lower.includes("line")
+  ) {
+    return "linestring";
+  }
+  
+  // Points: school, police, village, hospital, center, barriers, station, building, etc.
+  if (
+    lower.includes("village") || 
+    lower.includes("school") || 
+    lower.includes("centre") || 
+    lower.includes("center") || 
+    lower.includes("hospital") || 
+    lower.includes("police") || 
+    lower.includes("chauki") || 
+    lower.includes("outpost") || 
+    lower.includes("thana") || 
+    lower.includes("headquater") || 
+    lower.includes("barriers") || 
+    lower.includes("station") || 
+    lower.includes("building")
+  ) {
+    return "point";
+  }
+  
+  return "polygon"; // Default fallback
+}
+
+// Memory cache for processed layer features
+const processedFeaturesCache = new Map<string, any[]>();
+
+// API: Get metadata of all layers
+app.get("/api/layers", async (req, res) => {
   try {
     const client = await getMongoClient();
     const db = client.db(MONGODB_DB);
     const collection = db.collection(MONGODB_COLLECTION);
     
-    // Quick, lightweight check to count the documents (layers) in the collection
-    const currentDocCount = await collection.countDocuments().catch(() => 0);
-    if (currentDocCount !== cachedDocCount) {
-      dbChanged = true;
-      console.log(`[Cache Invalidation] Database document count changed from ${cachedDocCount} to ${currentDocCount}. Forcing refresh.`);
+    console.log("Fetching layers metadata...");
+    const layersData = await collection.aggregate([
+      {
+        $project: {
+          name: 1,
+          featuresCount: {
+            $cond: {
+              if: { $isArray: "$features" },
+              then: { $size: "$features" },
+              else: 1
+            }
+          }
+        }
+      }
+    ]).toArray();
+    
+    const layersConfigs = layersData.map((doc, index) => {
+      const name = doc.name || "Unnamed Layer";
+      const type = determineGeometryType(name);
+      
+      let color = "#6366f1"; // default indigo
+      let fillColor = "#818cf8";
+      let weight = 2;
+      let opacity = 0.85;
+      let fillOpacity = 0.4;
+
+      const lowerName = name.toLowerCase();
+      if (lowerName.includes("village")) {
+        color = "#ec4899"; // bright pink villages selector
+        fillColor = "#f472b6";
+        weight = 1.5;
+        opacity = 0.95;
+      } else if (lowerName.includes("river") || lowerName.includes("canal") || lowerName.includes("water")) {
+        color = "#0ea5e9"; // stream sky blue
+        fillColor = "#38bdf8";
+        weight = 2.5;
+        opacity = 1.0;
+        fillOpacity = 0.1;
+      } else if (lowerName.includes("district") || lowerName.includes("boundary")) {
+        color = "#a16207"; // Golden brown outline
+        fillColor = "#fbbf24"; // Mustard polygon fill
+        weight = 2.5;
+        opacity = 0.9;
+        fillOpacity = 0.55; // Solid background core
+      } else if (lowerName.includes("block")) {
+        color = "#c2410c"; // Rust dark
+        fillColor = "#fdba74"; // Peach block
+        weight = 2.0;
+        opacity = 0.8;
+        fillOpacity = 0.25;
+      } else if (lowerName.includes("tehsil") || lowerName.includes("tahsil")) {
+        color = "#15803d"; // Deep forest green
+        fillColor = "#86efac"; // Mint tehsil
+        weight = 2.0;
+        opacity = 0.85;
+        fillOpacity = 0.3;
+      } else {
+        const hue = (index * 137.5) % 360; 
+        color = `hsl(${hue}, 70%, 45%)`;
+        fillColor = `hsl(${hue}, 70%, 65%)`;
+      }
+
+      // Default visible layers: keep them minimal so page is clean and boots fast
+      const isDefaultVisible = name === "District-Boundary";
+
+      return {
+        id: `layer-${index}-${name.replace(/\s+/g, '-')}`,
+        name: name,
+        visible: isDefaultVisible,
+        type: type,
+        color: color,
+        fillColor: fillColor,
+        opacity: opacity,
+        fillOpacity: fillOpacity,
+        weight: weight,
+        itemCount: doc.featuresCount,
+        loaded: isDefaultVisible
+      };
+    });
+
+    // Sort priority: polygons first, then lines, then points
+    const sortPriority = (type: string) => {
+      if (type === "polygon") return 1;
+      if (type === "linestring") return 2;
+      if (type === "point") return 3;
+      return 4;
+    };
+    
+    layersConfigs.sort((a, b) => sortPriority(a.type) - sortPriority(b.type));
+
+    res.json({
+      success: true,
+      layers: layersConfigs
+    });
+  } catch (error: any) {
+    console.error("Error fetching layers metadata:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || String(error)
+    });
+  }
+});
+
+// API: Get features for a specific layer on demand
+app.get("/api/features", async (req, res) => {
+  try {
+    const layerParam = req.query.layer as string;
+    
+    if (!layerParam) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required query parameter: layer"
+      });
     }
-  } catch (err) {
-    console.error("Failed database pre-flight count for cache verification:", err);
-  }
 
-  if (cachedFeaturesResponse && !force && !dbChanged && (now - lastCacheTime < CACHE_TTL)) {
-    return cachedFeaturesResponse;
-  }
-  
-  if (isFetching && fetchPromise) {
-    return fetchPromise;
-  }
-  
-  isFetching = true;
-  fetchPromise = (async () => {
-    try {
-      const client = await getMongoClient();
-      const db = client.db(MONGODB_DB);
-      const collection = db.collection(MONGODB_COLLECTION);
+    if (processedFeaturesCache.has(layerParam)) {
+      const features = processedFeaturesCache.get(layerParam);
+      const jsonString = JSON.stringify({
+        success: true,
+        count: features?.length || 0,
+        features
+      });
       
-      console.log("Fetching GIS features from MongoDB Atlas via cursor to save memory...");
-      const cursor = collection.find({});
-      
-      const features: any[] = [];
-      let processedCount = 0;
-      let totalDocCount = 0;
-      const yieldEventLoop = () => new Promise(resolve => setImmediate(resolve));
-      
-      while (await cursor.hasNext()) {
-        const doc = await cursor.next();
-        if (!doc) continue;
-        totalDocCount++;
-        
-        // Determine layer name robustly:
-        let layerName = "Unassigned";
-        if (Array.isArray(doc.features)) {
-          layerName = doc.name || doc.Layer || doc.layer || "Unassigned";
-        } else {
-          layerName = doc.layer || doc.Layer || doc.properties?.layer || doc.properties?.Layer || doc.name || "Unassigned";
-        }
+      const gzipBuffer = zlib.gzipSync(jsonString);
+      const acceptEncoding = req.headers["accept-encoding"] || "";
+      if (acceptEncoding.includes("gzip")) {
+        res.set({
+          "Content-Encoding": "gzip",
+          "Content-Type": "application/json"
+        });
+        return res.send(gzipBuffer);
+      } else {
+        res.set("Content-Type", "application/json");
+        return res.send(jsonString);
+      }
+    }
 
-        if (layerName === "Health-Ayurvedic-Centres") {
-          continue;
-        }
+    const client = await getMongoClient();
+    const db = client.db(MONGODB_DB);
+    const collection = db.collection(MONGODB_COLLECTION);
+    
+    console.log(`[On Demand Fetch] Loading features for layer: ${layerParam}`);
+    const doc = await collection.findOne({ name: layerParam });
+    
+    if (!doc) {
+      return res.json({
+        success: true,
+        count: 0,
+        features: []
+      });
+    }
+
+    const features: any[] = [];
+    const layerName = doc.name || "Unassigned";
+
+    if (Array.isArray(doc.features)) {
+      for (let j = 0; j < doc.features.length; j++) {
+        const feat = doc.features[j];
+        const projectedGeom = feat.geometry ? {
+          ...feat.geometry,
+          coordinates: projectCoordinates(feat.geometry.coordinates)
+        } : null;
         
+        features.push({
+          id: feat.id || `${doc._id.toString()}-${j}`,
+          type: "Feature",
+          geometry: projectedGeom,
+          properties: {
+            ...feat.properties,
+            layer: layerName,
+            name: feat.properties?.name || feat.properties?.Name || feat.properties?.village_name || feat.properties?.Village_Name || ""
+          }
+        });
+      }
+    } else if (doc.type === "Feature" || (doc.geometry && doc.properties)) {
+      const projectedGeom = doc.geometry ? {
+        ...doc.geometry,
+        coordinates: projectCoordinates(doc.geometry.coordinates)
+      } : null;
+
+      features.push({
+        id: doc._id.toString(),
+        type: "Feature",
+        geometry: projectedGeom,
+        properties: {
+          ...doc.properties,
+          layer: layerName,
+          name: doc.properties?.name || doc.properties?.Name || doc.properties?.village_name || doc.properties?.Village_Name || ""
+        }
+      });
+    } else {
+      const geometry = doc.geometry || (doc.coordinates ? { type: doc.geom_type || "Point", coordinates: doc.coordinates } : null);
+      if (geometry) {
+        const projectedGeom = {
+          ...geometry,
+          coordinates: projectCoordinates(geometry.coordinates)
+        };
+
+        features.push({
+          id: doc._id.toString(),
+          type: "Feature",
+          geometry: projectedGeom,
+          properties: {
+            ...doc,
+            layer: layerName,
+            name: doc.name || doc.Name || doc.village_name || doc.Village_Name || ""
+          }
+        });
+      }
+    }
+
+    processedFeaturesCache.set(layerParam, features);
+
+    const jsonString = JSON.stringify({
+      success: true,
+      count: features.length,
+      features
+    });
+
+    const gzipBuffer = zlib.gzipSync(jsonString);
+    const acceptEncoding = req.headers["accept-encoding"] || "";
+    if (acceptEncoding.includes("gzip")) {
+      res.set({
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json"
+      });
+      res.send(gzipBuffer);
+    } else {
+      res.set("Content-Type", "application/json");
+      res.send(jsonString);
+    }
+  } catch (error: any) {
+    console.error(`Error loading features for layer ${req.query.layer}:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message || String(error)
+    });
+  }
+});
+
+// Warm up default layers in memory cache on startup
+async function warmupCache() {
+  try {
+    console.log("Starting background layer cache warmup...");
+    const client = await getMongoClient();
+    const db = client.db(MONGODB_DB);
+    const collection = db.collection(MONGODB_COLLECTION);
+    
+    const defaultLayers = ["District-Boundary", "Tehsil-Boundary", "Block-Boundary"];
+    for (const name of defaultLayers) {
+      console.log(`[Cache Warmup] Warming up ${name}...`);
+      const doc = await collection.findOne({ name });
+      if (doc) {
+        const features: any[] = [];
+        const layerName = doc.name || "Unassigned";
+
         if (Array.isArray(doc.features)) {
           for (let j = 0; j < doc.features.length; j++) {
             const feat = doc.features[j];
@@ -196,121 +448,21 @@ async function fetchAndProcessFeatures(force = false) {
                 name: feat.properties?.name || feat.properties?.Name || feat.properties?.village_name || feat.properties?.Village_Name || ""
               }
             });
-            
-            processedCount++;
-            if (processedCount % 500 === 0) {
-              await yieldEventLoop();
-            }
-          }
-        } else if (doc.type === "Feature" || (doc.geometry && doc.properties)) {
-          const projectedGeom = doc.geometry ? {
-            ...doc.geometry,
-            coordinates: projectCoordinates(doc.geometry.coordinates)
-          } : null;
-
-          features.push({
-            id: doc._id.toString(),
-            type: "Feature",
-            geometry: projectedGeom,
-            properties: {
-              ...doc.properties,
-              layer: layerName,
-              name: doc.properties?.name || doc.properties?.Name || doc.properties?.village_name || doc.properties?.Village_Name || ""
-            }
-          });
-          
-          processedCount++;
-          if (processedCount % 500 === 0) {
-            await yieldEventLoop();
-          }
-        } else {
-          const geometry = doc.geometry || (doc.coordinates ? { type: doc.geom_type || "Point", coordinates: doc.coordinates } : null);
-          if (geometry) {
-            const projectedGeom = {
-              ...geometry,
-              coordinates: projectCoordinates(geometry.coordinates)
-            };
-
-            features.push({
-              id: doc._id.toString(),
-              type: "Feature",
-              geometry: projectedGeom,
-              properties: {
-                ...doc,
-                layer: layerName,
-                name: doc.name || doc.Name || doc.village_name || doc.Village_Name || ""
-              }
-            });
-          }
-          
-          processedCount++;
-          if (processedCount % 500 === 0) {
-            await yieldEventLoop();
           }
         }
+        processedFeaturesCache.set(name, features);
+        console.log(`[Cache Warmup] Warmup done for ${name}. Loaded ${features.length} features.`);
       }
-      
-      console.log(`Successfully processed ${features.length} features. Compressing to Gzip to save memory and network bandwidth...`);
-      const jsonString = JSON.stringify({
-        success: true,
-        count: features.length,
-        features
-      });
-      
-      const gzipBuffer = zlib.gzipSync(jsonString);
-      
-      cachedFeaturesResponse = {
-        gzip: gzipBuffer,
-        count: features.length
-      };
-      
-      cachedDocCount = totalDocCount;
-      lastCacheTime = Date.now();
-      
-      console.log(`Successfully fetched, cached and compressed ${features.length} features across ${totalDocCount} layers. Gzip size: ${(gzipBuffer.length / (1024 * 1024)).toFixed(2)} MB.`);
-      return cachedFeaturesResponse;
-    } catch (error) {
-      console.error("Error fetching and processing GIS features:", error);
-      throw error;
-    } finally {
-      isFetching = false;
-      fetchPromise = null;
     }
-  })();
-  
-  return fetchPromise;
+    console.log("Background layer cache warmup complete!");
+  } catch (err) {
+    console.error("Background layer cache warmup failed:", err);
+  }
 }
 
-// Background pre-fetch on startup to warm up the cache
-fetchAndProcessFeatures().catch((err) => {
-  console.error("Failed background pre-fetch on startup:", err);
-});
-
-// API: Get all features
-app.get("/api/features", async (req, res) => {
-  try {
-    const force = req.query.force === "true";
-    const cacheData = await fetchAndProcessFeatures(force);
-    
-    // Check if client supports Gzip compression
-    const acceptEncoding = req.headers["accept-encoding"] || "";
-    if (acceptEncoding.includes("gzip")) {
-      res.set({
-        "Content-Encoding": "gzip",
-        "Content-Type": "application/json"
-      });
-      res.send(cacheData.gzip);
-    } else {
-      const decompressed = zlib.gunzipSync(cacheData.gzip);
-      res.set("Content-Type", "application/json");
-      res.send(decompressed);
-    }
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message || String(error)
-    });
-  }
+// Trigger cache warmup in background without blocking server startup
+warmupCache().catch((err) => {
+  console.error("Background warmup failed:", err);
 });
 
 // API: Proxy Bhuvan tiles to bypass mixed content (HTTP over HTTPS) or self-signed cert blocks

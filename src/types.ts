@@ -39,4 +39,6 @@ export interface LayerConfig {
   fillOpacity: number;
   weight: number;
   itemCount: number;
+  loaded?: boolean;
+  loading?: boolean;
 }

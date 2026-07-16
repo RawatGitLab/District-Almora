@@ -135,7 +135,7 @@ export default function MapComponent({
   }, [measureMode]);
 
   const [mouseCoords, setMouseCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<number>(9);
+  const [zoomLevel, setZoomLevel] = useState<number>(10);
 
   // Search feature state
   const [mapSearchQuery, setMapSearchQuery] = useState<string>("");
@@ -185,6 +185,7 @@ export default function MapComponent({
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     // Center on Almora, Uttarakhand, India (Almora: 29.60, 79.66)
+
     const map = L.map(mapContainerRef.current, {
       center: [29.60, 79.66],
       zoom: 10,
@@ -725,9 +726,9 @@ export default function MapComponent({
       <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 backdrop-blur border border-slate-200 shadow-sm px-3 py-1.5 rounded-md flex items-center gap-4 text-xs font-mono text-slate-600">
         <div className="flex items-center gap-1.5">
           <Move className="w-3.5 h-3.5 text-slate-400" />
-          <span>X (Lng): <strong ref={lngRef} className="text-slate-800">---</strong></span>
+          <span>X (Lng): <strong ref={lngRef} className="text-slate-800">79.66000</strong></span>
           <span className="text-slate-300">|</span>
-          <span>Y (Lat): <strong ref={latRef} className="text-slate-800">---</strong></span>
+          <span>Y (Lat): <strong ref={latRef} className="text-slate-800">29.60000</strong></span>
         </div>
         <div className="h-3 w-px bg-slate-200" />
         <div className="text-[11px] font-semibold text-slate-500">

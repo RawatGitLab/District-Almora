@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Layers, Globe, Sliders, CheckSquare, Square, Check, RotateCcw, Database, ChevronDown, ChevronRight, Minimize2, Maximize2, Ruler, Trash2, Undo, GraduationCap, BookOpen, Heart, Shield, Waves, Compass, Building2, Map } from "lucide-react";
+import { Layers, Globe, Sliders, CheckSquare, Square, Check, RotateCcw, Database, ChevronDown, ChevronRight, Minimize2, Maximize2, Ruler, Trash2, Undo, GraduationCap, BookOpen, Heart, Shield, Waves, Compass, Loader2 } from "lucide-react";
 import { LayerConfig, BaseMap } from "../types";
 
 interface SidebarProps {
@@ -62,27 +62,7 @@ const ORIGINAL_LAYERS = new Set([
   "village-under-police-jurisdiction"
 ]);
 
-const MUNICIPAL_WARD_LAYERS = new Set([
-  "badreshwar",
-  "baleshwar",
-  "dugalkhola",
-  "laxmeshwar",
-  "murlimanohar",
-  "nandadevi",
-  "ntd",
-  "railapali",
-  "rajpura",
-  "ramshila",
-  "shelakhola",
-  "tripura-sundari",
-  "vivekanandpuri"
-]);
 
-const NAGAR_NIGAM_LAYERS = new Set([
-  "stp_stations",
-  "town-drainage",
-  "stp-area"
-]);
 
 export default function Sidebar({
   layers,
@@ -111,8 +91,6 @@ export default function Sidebar({
   const [isHealthCollapsed, setIsHealthCollapsed] = useState<boolean>(true);
   const [isPoliceCollapsed, setIsPoliceCollapsed] = useState<boolean>(true);
   const [isRiverCollapsed, setIsRiverCollapsed] = useState<boolean>(true);
-  const [isNagarNigamCollapsed, setIsNagarNigamCollapsed] = useState<boolean>(true);
-  const [isMunicipalWardCollapsed, setIsMunicipalWardCollapsed] = useState<boolean>(true);
 
   const anyLayerActive = useMemo(() => {
     return layers.some((l) => l.visible);
@@ -174,33 +152,9 @@ export default function Sidebar({
     });
   }, [layers]);
 
-  const nagarNigamLayers = useMemo(() => {
-    return layers.filter(layer => {
-      const lower = layer.name.toLowerCase();
-      return lower.includes("nagar-nigam") || lower.includes("nagar nigam") || NAGAR_NIGAM_LAYERS.has(lower);
-    });
-  }, [layers]);
-
-  const municipalWardLayers = useMemo(() => {
-    return layers.filter(layer => {
-      const lower = layer.name.toLowerCase();
-      return MUNICIPAL_WARD_LAYERS.has(lower);
-    });
-  }, [layers]);
-
   const otherLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
-      
-      // If it belongs to Nagar Nigam, filter it out from otherLayers
-      if (lower.includes("nagar-nigam") || lower.includes("nagar nigam") || NAGAR_NIGAM_LAYERS.has(lower)) {
-        return false;
-      }
-
-      // If it is a Municipal Ward layer, filter it out from otherLayers
-      if (MUNICIPAL_WARD_LAYERS.has(lower)) {
-        return false;
-      }
       
       const isPolice = lower.includes("police");
       const isHealth = lower.includes("health");
@@ -240,13 +194,16 @@ export default function Sidebar({
           {/* Interactive toggle */}
           <button
             onClick={() => toggleLayer(layer.id)}
+            disabled={layer.loading}
             className={`p-1 rounded-md transition duration-150 ${
               layer.visible 
                 ? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100" 
                 : "text-slate-400 bg-slate-100 hover:bg-slate-200"
             }`}
           >
-            {layer.visible ? (
+            {layer.loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+            ) : layer.visible ? (
               <CheckSquare className="w-3.5 h-3.5" />
             ) : (
               <Square className="w-3.5 h-3.5" />
@@ -434,13 +391,16 @@ export default function Sidebar({
           <button
             onClick={() => toggleAllLayers(!anyLayerActive)}
             title={anyLayerActive ? "Deactivate All Layers" : "Activate All Layers"}
+            disabled={layers.some((l) => l.loading)}
             className={`p-1.5 rounded-md transition duration-150 border border-transparent cursor-pointer ${
               anyLayerActive
                 ? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
                 : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-            }`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {anyLayerActive ? (
+            {layers.some((l) => l.loading) ? (
+              <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+            ) : anyLayerActive ? (
               <CheckSquare className="w-4 h-4" />
             ) : (
               <Square className="w-4 h-4" />
@@ -631,65 +591,7 @@ export default function Sidebar({
                 )}
               </div>
 
-              {/* Collapsible Nagar Nigam Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
-                <button
-                  onClick={() => setIsNagarNigamCollapsed(!isNagarNigamCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
-                >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
-                    <Building2 className="w-3.5 h-3.5 text-amber-500" />
-                    Nagar Nigam Layer ({nagarNigamLayers.length})
-                  </span>
-                  {isNagarNigamCollapsed ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-                  )}
-                </button>
-                
-                {!isNagarNigamCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                    {nagarNigamLayers.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-slate-400 font-medium">
-                        No Nagar Nigam layers loaded.
-                      </div>
-                    ) : (
-                      nagarNigamLayers.map((layer) => renderLayerItem(layer))
-                    )}
-                  </div>
-                )}
-              </div>
 
-              {/* Collapsible Municipal Ward Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
-                <button
-                  onClick={() => setIsMunicipalWardCollapsed(!isMunicipalWardCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
-                >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
-                    <Map className="w-3.5 h-3.5 text-rose-500" />
-                    Municipal Ward Layer ({municipalWardLayers.length})
-                  </span>
-                  {isMunicipalWardCollapsed ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-                  )}
-                </button>
-                
-                {!isMunicipalWardCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                    {municipalWardLayers.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-slate-400 font-medium">
-                        No Municipal Ward layers loaded.
-                      </div>
-                    ) : (
-                      municipalWardLayers.map((layer) => renderLayerItem(layer))
-                    )}
-                  </div>
-                )}
-              </div>
 
               {/* Other Layers Section */}
               {otherLayers.length > 0 && (

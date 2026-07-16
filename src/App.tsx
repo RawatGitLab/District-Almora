@@ -91,54 +91,48 @@ export default function App() {
 
   // Fetch geographic features from backend Express server (connecting to MongoDB Atlas)
   useEffect(() => {
-    fetchFeatures();
+    fetchInitialData();
   }, []);
 
-  const fetchFeatures = async (force = false) => {
+  const fetchInitialData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(force ? "/api/features?force=true" : "/api/features");
-      if (!response.ok) {
-        throw new Error(`Failed to load features from MongoDB database: Server responded with ${response.status}`);
+      // 1. Fetch all layer metadata
+      const layersRes = await fetch("/api/layers");
+      if (!layersRes.ok) {
+        throw new Error(`Failed to load layers metadata from server: ${layersRes.status}`);
+      }
+      const layersData = await layersRes.json();
+      if (!layersData.success) {
+        throw new Error(layersData.error || "Unknown error loading layers metadata");
       }
       
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || "Unknown database fetching error");
-      }
+      const loadedLayers: LayerConfig[] = layersData.layers || [];
+      setLayers(loadedLayers);
 
-      const rawFeatures: GisFeature[] = (data.features || []).filter((feat: any) => {
-        const layerName = feat?.properties?.layer || feat?.properties?.Layer || feat?.properties?.LAYER || "";
-        return layerName !== "Health-Ayurvedic-Centres";
-      });
-      const gisFeatures = rawFeatures.map((feat) => {
-        const props = feat.properties || {};
-        let layerName = props.layer || props.Layer || props.LAYER || "";
-        // Normalize river layer names to the standardized name with double spaces
-        if (layerName === "River-Perennial" || layerName === "River-Perennial(1965)" || layerName === "River-Perennial  (1965)") {
-          layerName = "River-Perennial  (1965)";
-        } else if (layerName === "River-Non-Perennial" || layerName === "River-Non-Perennial(1965)" || layerName === "River-Non-Perennial  (1965)") {
-          layerName = "River-Non-Perennial  (1965)";
-        }
-        
-        // Ensure all possible casing variations of the layer property are populated consistently
-        const updatedProperties = { 
-          ...props,
-          layer: layerName,
-          Layer: layerName,
-          LAYER: layerName
-        };
+      // 2. Load features for default visible layers (e.g. District-Boundary, Tehsil-Boundary, Block-Boundary)
+      const defaultVisible = loadedLayers.filter(l => l.visible);
+      const featuresList: GisFeature[] = [];
 
-        return {
-          ...feat,
-          properties: updatedProperties
-        };
-      });
-      setFeatures(gisFeatures);
-      
-      // Auto-classify layers dynamically from the features loaded
-      buildLayerConfiguration(gisFeatures);
+      // Fetch them in parallel for speed!
+      await Promise.all(
+        defaultVisible.map(async (layer) => {
+          try {
+            const featRes = await fetch(`/api/features?layer=${encodeURIComponent(layer.name)}`);
+            if (featRes.ok) {
+              const featData = await featRes.json();
+              if (featData.success && Array.isArray(featData.features)) {
+                featuresList.push(...featData.features);
+              }
+            }
+          } catch (e) {
+            console.error(`Error pre-loading default layer features for ${layer.name}:`, e);
+          }
+        })
+      );
+
+      setFeatures(featuresList);
       setLoading(false);
     } catch (err: any) {
       console.error(err);
@@ -147,139 +141,79 @@ export default function App() {
     }
   };
 
-  // Analyze features to identify unique layers, geometry types, and assign aesthetic styling
-  const buildLayerConfiguration = (loadedFeatures: GisFeature[]) => {
-    const layerCounts: Record<string, number> = {};
-    const layerTypes: Record<string, "point" | "linestring" | "polygon" | "unknown"> = {};
-
-    loadedFeatures.forEach((feat) => {
-      // Find layer property dynamically
-      const layerName = 
-        feat.properties.layer || 
-        feat.properties.Layer || 
-        feat.properties.LAYER || 
-        "General Feature";
-        
-      layerCounts[layerName] = (layerCounts[layerName] || 0) + 1;
-      
-      if (layerName === "Landuse-Agriculture") {
-        console.log("DEBUG: Found feature for Landuse-Agriculture");
-      }
-      // Classify geometry type
-      const geomType = feat.geometry?.type;
-      if (geomType) {
-        if (geomType.toLowerCase().includes("point")) {
-          layerTypes[layerName] = "point";
-        } else if (geomType.toLowerCase().includes("line")) {
-          layerTypes[layerName] = "linestring";
-        } else if (geomType.toLowerCase().includes("polygon")) {
-          layerTypes[layerName] = "polygon";
-        } else if (!layerTypes[layerName]) {
-          layerTypes[layerName] = "unknown";
-        }
-      } else if (!layerTypes[layerName]) {
-        layerTypes[layerName] = "unknown";
-      }
-    });
-
-    // Create sorted layer config array
-    const layerNames = Object.keys(layerCounts);
-    
-    // Sort layers to make outer structures (boundaries) go below details (rivers, villages)
-    // Polygons must go first in layers configuration so that Leaflet layers renders them at the bottom index (to avoid overlay blocking village clicks!)
-    // Points (villages) should render on top
-    const sortPriority = (name: string, type: string) => {
-      if (type === "polygon") return 1;
-      if (type === "linestring") return 2;
-      if (type === "point") return 3;
-      return 4;
-    };
-
-    layerNames.sort((a, b) => sortPriority(a, layerTypes[a]) - sortPriority(b, layerTypes[b]));
-
-    const configuration: LayerConfig[] = layerNames.map((name, index) => {
-      const type = layerTypes[name] || "unknown";
-      
-      // Determine elegant theme coloring based on standard GIS mapping schemas
-      let color = "#6366f1"; // default indigo
-      let fillColor = "#818cf8";
-      let weight = 2;
-      let opacity = 0.85;
-      let fillOpacity = 0.4;
-
-      const lowerName = name.toLowerCase();
-      if (lowerName.includes("village")) {
-        color = "#ec4899"; // bright pink villages selector
-        fillColor = "#f472b6";
-        weight = 1.5;
-        opacity = 0.95;
-      } else if (lowerName.includes("river") || lowerName.includes("canal") || lowerName.includes("water")) {
-        color = "#0ea5e9"; // stream sky blue
-        fillColor = "#38bdf8";
-        weight = 2.5;
-        opacity = 1.0;
-        fillOpacity = 0.1;
-      } else if (lowerName.includes("district") || lowerName.includes("boundary")) {
-        color = "#a16207"; // Golden brown outline
-        fillColor = "#fbbf24"; // Mustard polygon fill
-        weight = 2.5;
-        opacity = 0.9;
-        fillOpacity = 0.55; // Solid background core
-      } else if (lowerName.includes("block")) {
-        color = "#c2410c"; // Rust dark
-        fillColor = "#fdba74"; // Peach block
-        weight = 2.0;
-        opacity = 0.8;
-        fillOpacity = 0.25;
-      } else if (lowerName.includes("tehsil") || lowerName.includes("tahsil")) {
-        color = "#15803d"; // Deep forest green
-        fillColor = "#86efac"; // Mint tehsil
-        weight = 2.0;
-        opacity = 0.85;
-        fillOpacity = 0.3;
-      } else {
-        // Dynamic palette for any other shapefile imported
-        const hue = (index * 137.5) % 360; 
-        color = `hsl(${hue}, 70%, 45%)`;
-        fillColor = `hsl(${hue}, 70%, 65%)`;
-      }
-
-      return {
-        id: `layer-${index}-${name.replace(/\s+/g, '-')}`,
-        name: name,
-        visible: name === "District-Boundary" || name === "Landuse-Agriculture",
-        type: type,
-        color: color,
-        fillColor: fillColor,
-        opacity: opacity,
-        fillOpacity: fillOpacity,
-        weight: weight,
-        itemCount: layerCounts[name]
-      };
-    });
-
-    setLayers(configuration);
+  // Sync / Reload all data manually
+  const fetchFeatures = async (force = false) => {
+    // If the user triggers database sync, reload the initial state
+    fetchInitialData();
   };
 
-  // Handle sidebar interactivity toggles
-  const toggleLayer = (id: string) => {
-    setLayers((prev) => {
-      const layerToToggle = prev.find((l) => l.id === id);
+  // Fetch a layer's features on demand
+  const loadLayerFeatures = async (layerName: string) => {
+    try {
+      const featRes = await fetch(`/api/features?layer=${encodeURIComponent(layerName)}`);
+      if (!featRes.ok) throw new Error(`Status ${featRes.status}`);
+      const featData = await featRes.json();
+      if (featData.success && Array.isArray(featData.features)) {
+        return featData.features;
+      }
+      return [];
+    } catch (err) {
+      console.error(`Failed to load layer features for ${layerName}:`, err);
+      return [];
+    }
+  };
 
-      // If the layer is going to be hidden and has the selected feature, clear the selection
-      if (layerToToggle && layerToToggle.visible && selectedFeature) {
+  // Handle sidebar interactivity toggles with on-demand loading
+  const toggleLayer = async (id: string) => {
+    let targetLayer: LayerConfig | undefined;
+    
+    // Check if we need to load features
+    setLayers((prev) => {
+      targetLayer = prev.find((l) => l.id === id);
+      return prev;
+    });
+
+    if (!targetLayer) return;
+
+    const turningOn = !targetLayer.visible;
+
+    if (turningOn && !targetLayer.loaded) {
+      // Mark layer as loading in state
+      setLayers((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, loading: true } : l))
+      );
+
+      // Fetch features from backend
+      const newFeatures = await loadLayerFeatures(targetLayer.name);
+
+      // Add new features and mark loaded
+      setFeatures((prev) => {
+        const filtered = prev.filter(f => f.properties.layer !== targetLayer!.name && f.properties.Layer !== targetLayer!.name);
+        return [...filtered, ...newFeatures];
+      });
+
+      setLayers((prev) =>
+        prev.map((l) =>
+          l.id === id ? { ...l, loaded: true, loading: false, visible: true } : l
+        )
+      );
+    } else {
+      // If turning off and it had the selected feature, clear selection
+      if (!turningOn && selectedFeature) {
         const featLayerName =
           selectedFeature.properties.layer ||
           selectedFeature.properties.Layer ||
           selectedFeature.properties.LAYER;
 
-        if (featLayerName === layerToToggle.name) {
+        if (featLayerName === targetLayer.name) {
           setSelectedFeature(null);
         }
       }
 
-      return prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l));
-    });
+      setLayers((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
+      );
+    }
   };
 
   const updateLayerOpacity = (id: string, opacity: number) => {
@@ -292,7 +226,6 @@ export default function App() {
     setLayers((prev) => {
       return prev.map((l) => {
         if (l.id === id) {
-          // If the fill color was same as color, update it too
           return { 
             ...l, 
             color: color, 
@@ -309,12 +242,64 @@ export default function App() {
     setHoveredFeature(null);
     setMeasureMode("none");
     setMeasurePoints([]);
-    // Simple state refresh to reset sliders or zoom
-    setLayers((prev) => prev.map((l) => ({ ...l, visible: true, opacity: l.type === "polygon" && l.name.toLowerCase().includes("tehsil") ? 0.85 : 0.9 })));
+    setLayers((prev) => prev.map((l) => ({ ...l, visible: l.loaded ? true : false, opacity: l.type === "polygon" && l.name.toLowerCase().includes("tehsil") ? 0.85 : 0.9 })));
   };
 
-  const toggleAllLayers = (visible: boolean) => {
-    setLayers((prev) => prev.map((l) => ({ ...l, visible })));
+  const toggleAllLayers = async (visible: boolean) => {
+    if (visible) {
+      const unloaded = layers.filter(l => !l.loaded);
+      
+      if (unloaded.length > 0) {
+        // Set all unloaded layers to loading: true, and already loaded layers to visible: true
+        setLayers((prev) =>
+          prev.map((l) => (!l.loaded ? { ...l, loading: true, visible: true } : { ...l, visible: true }))
+        );
+
+        try {
+          const newFeaturesList: GisFeature[] = [];
+
+          await Promise.all(
+            unloaded.map(async (layer) => {
+              try {
+                const feats = await loadLayerFeatures(layer.name);
+                newFeaturesList.push(...feats);
+                // Mark this specific layer as loaded and not loading anymore
+                setLayers((prev) =>
+                  prev.map((l) =>
+                    l.id === layer.id ? { ...l, loaded: true, loading: false, visible: true } : l
+                  )
+                );
+              } catch (err) {
+                console.error(`Error loading layer ${layer.name}:`, err);
+                // Reset this layer's loading state on error
+                setLayers((prev) =>
+                  prev.map((l) =>
+                    l.id === layer.id ? { ...l, loading: false, visible: false } : l
+                  )
+                );
+              }
+            })
+          );
+
+          if (newFeaturesList.length > 0) {
+            setFeatures((prev) => {
+              // Deduplicate if any exist
+              const existingLayerNames = new Set(newFeaturesList.map(f => (f.properties.layer || f.properties.Layer || "").toLowerCase()));
+              const filtered = prev.filter(f => !existingLayerNames.has((f.properties.layer || f.properties.Layer || "").toLowerCase()));
+              return [...filtered, ...newFeaturesList];
+            });
+          }
+        } catch (err) {
+          console.error("Error batch loading layers:", err);
+        }
+      } else {
+        // If all are already loaded, simply make them visible
+        setLayers((prev) => prev.map((l) => ({ ...l, visible: true })));
+      }
+    } else {
+      setLayers((prev) => prev.map((l) => ({ ...l, visible: false })));
+      setSelectedFeature(null);
+    }
   };
 
   return (
