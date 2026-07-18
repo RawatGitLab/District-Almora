@@ -229,7 +229,7 @@ export default function Sidebar({
               <span 
                 className="w-3.5 h-3.5 rounded border-2 shadow-inner inline-block shrink-0 bg-slate-700" 
                 style={{ 
-                  borderColor: "#ffffff"
+                  borderColor: layer.color
                 }}
               />
             )}

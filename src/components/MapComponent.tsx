@@ -277,7 +277,7 @@ export default function MapComponent({
         try {
           const isPolygon = layerConf.type === "polygon";
           existingLayer.setStyle({
-            color: isPolygon ? "#ffffff" : layerConf.color,
+            color: layerConf.color,
             fillColor: isPolygon ? "transparent" : (layerConf.fillColor || layerConf.color),
             fill: isPolygon ? false : true,
             weight: layerConf.weight,
@@ -318,7 +318,7 @@ export default function MapComponent({
           style: (feature: any) => {
             const isPolygon = layerConf.type === "polygon";
             return {
-              color: isPolygon ? "#ffffff" : layerConf.color,
+              color: layerConf.color,
               fillColor: isPolygon ? "transparent" : (layerConf.fillColor || layerConf.color),
               fill: isPolygon ? false : true,
               weight: layerConf.weight,
