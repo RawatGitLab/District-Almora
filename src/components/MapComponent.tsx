@@ -276,13 +276,15 @@ export default function MapComponent({
         // Update styling of existing layer (if color, opacity, or weight changed)
         try {
           const isPolygon = layerConf.type === "polygon";
+          const isLine = layerConf.type === "linestring";
+          const shouldFill = !isPolygon && !isLine;
           existingLayer.setStyle({
             color: layerConf.color,
-            fillColor: isPolygon ? "transparent" : (layerConf.fillColor || layerConf.color),
-            fill: isPolygon ? false : true,
+            fillColor: shouldFill ? (layerConf.fillColor || layerConf.color) : "transparent",
+            fill: shouldFill,
             weight: layerConf.weight,
             opacity: layerConf.opacity,
-            fillOpacity: isPolygon ? 0 : (layerConf.fillOpacity * layerConf.opacity),
+            fillOpacity: shouldFill ? (layerConf.fillOpacity * layerConf.opacity) : 0,
           });
         } catch (styleErr) {
           console.warn(`Could not update style for existing layer ${layerConf.name}:`, styleErr);
@@ -317,13 +319,15 @@ export default function MapComponent({
           interactive: measureMode === "none",
           style: (feature: any) => {
             const isPolygon = layerConf.type === "polygon";
+            const isLine = layerConf.type === "linestring";
+            const shouldFill = !isPolygon && !isLine;
             return {
               color: layerConf.color,
-              fillColor: isPolygon ? "transparent" : (layerConf.fillColor || layerConf.color),
-              fill: isPolygon ? false : true,
+              fillColor: shouldFill ? (layerConf.fillColor || layerConf.color) : "transparent",
+              fill: shouldFill,
               weight: layerConf.weight,
               opacity: layerConf.opacity,
-              fillOpacity: isPolygon ? 0 : (layerConf.fillOpacity * layerConf.opacity),
+              fillOpacity: shouldFill ? (layerConf.fillOpacity * layerConf.opacity) : 0,
             };
           },
           pointToLayer: (feature: any, latlng: L.LatLng) => {
