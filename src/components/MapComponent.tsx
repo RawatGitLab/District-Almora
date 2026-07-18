@@ -275,12 +275,14 @@ export default function MapComponent({
       if (existingLayer) {
         // Update styling of existing layer (if color, opacity, or weight changed)
         try {
+          const isPolygon = layerConf.type === "polygon";
           existingLayer.setStyle({
-            color: layerConf.color,
-            fillColor: layerConf.fillColor || layerConf.color,
+            color: isPolygon ? "#ffffff" : layerConf.color,
+            fillColor: isPolygon ? "transparent" : (layerConf.fillColor || layerConf.color),
+            fill: isPolygon ? false : true,
             weight: layerConf.weight,
             opacity: layerConf.opacity,
-            fillOpacity: layerConf.fillOpacity * layerConf.opacity,
+            fillOpacity: isPolygon ? 0 : (layerConf.fillOpacity * layerConf.opacity),
           });
         } catch (styleErr) {
           console.warn(`Could not update style for existing layer ${layerConf.name}:`, styleErr);
@@ -314,12 +316,14 @@ export default function MapComponent({
         const geoJsonLayer = L.geoJSON(geoJsonData, {
           interactive: measureMode === "none",
           style: (feature: any) => {
+            const isPolygon = layerConf.type === "polygon";
             return {
-              color: layerConf.color,
-              fillColor: layerConf.fillColor || layerConf.color,
+              color: isPolygon ? "#ffffff" : layerConf.color,
+              fillColor: isPolygon ? "transparent" : (layerConf.fillColor || layerConf.color),
+              fill: isPolygon ? false : true,
               weight: layerConf.weight,
               opacity: layerConf.opacity,
-              fillOpacity: layerConf.fillOpacity * layerConf.opacity,
+              fillOpacity: isPolygon ? 0 : (layerConf.fillOpacity * layerConf.opacity),
             };
           },
           pointToLayer: (feature: any, latlng: L.LatLng) => {

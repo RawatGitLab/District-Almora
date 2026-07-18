@@ -236,6 +236,12 @@ app.get("/api/layers", async (req, res) => {
         fillColor = `hsl(${hue}, 70%, 65%)`;
       }
 
+      if (type === "polygon") {
+        color = "#ffffff";
+        fillColor = "transparent";
+        fillOpacity = 0;
+      }
+
       // Default visible layers: keep them minimal so page is clean and boots fast
       const isDefaultVisible = name === "District-Boundary";
 
