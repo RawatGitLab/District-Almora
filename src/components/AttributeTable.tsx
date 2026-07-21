@@ -24,7 +24,6 @@ export default function AttributeTable({
   onRefresh
 }: AttributeTableProps) {
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [isFormCollapsed, setIsFormCollapsed] = useState<boolean>(true);
   const [isStatusCollapsed, setIsStatusCollapsed] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -212,17 +211,6 @@ export default function AttributeTable({
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setIsFormCollapsed(!isFormCollapsed)}
-              title={isFormCollapsed ? "Expand Filters" : "Collapse Filters"}
-              className={`p-1.5 rounded-md transition duration-150 border cursor-pointer flex items-center justify-center ${
-                theme === "dark"
-                  ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750 hover:text-white"
-                  : "text-slate-500 hover:text-slate-800 bg-slate-50 border-slate-200"
-              }`}
-            >
-              {isFormCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-            </button>
-            <button
               onClick={() => setIsCollapsed(true)}
               title="Minimize panel"
               className={`p-1.5 rounded-md transition duration-150 border border-transparent cursor-pointer ${
@@ -234,52 +222,48 @@ export default function AttributeTable({
           </div>
         </div>
 
-        {!isFormCollapsed && (
-          <>
-            {/* Search Bar */}
-            {currentLayer && (
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder={`Search in ${currentLayer.name}...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full text-xs pl-9 pr-4 py-1.5 rounded-lg border transition placeholder-slate-400 focus:outline-indigo-500 focus:bg-white ${
-                    theme === "dark"
-                      ? "bg-slate-900 border-slate-800 text-slate-100 focus:text-slate-900"
-                      : "bg-slate-50 border-slate-200 text-slate-700"
-                  }`}
-                />
-              </div>
-            )}
+        {/* Search Bar */}
+        {currentLayer && (
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder={`Search in ${currentLayer.name}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full text-xs pl-9 pr-4 py-1.5 rounded-lg border transition placeholder-slate-400 focus:outline-indigo-500 focus:bg-white ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-800 text-slate-100 focus:text-slate-900"
+                  : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}
+            />
+          </div>
+        )}
 
-            {/* Quick Analytics Summary Panel */}
-            {layerStats && (layerStats.totalHH !== null || layerStats.totalPopulation !== null) && (
-              <div className={`border p-3 rounded-lg space-y-2 transition-colors duration-300 ${
-                theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-100 text-slate-700"
-              }`}>
-                <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block font-mono flex items-center gap-1">
-                  <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
-                  Aggregate Estimations
-                </span>
-                <div className="grid grid-cols-2 gap-3 pt-0.5">
-                  {layerStats.totalHH !== null && (
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-slate-400 font-semibold leading-none">Total Households:</span>
-                      <strong className={`text-sm font-black font-mono mt-1 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{layerStats.totalHH.toLocaleString()}</strong>
-                    </div>
-                  )}
-                  {layerStats.totalPopulation !== null && (
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-slate-400 font-semibold leading-none">Total Population:</span>
-                      <strong className={`text-sm font-black font-mono mt-1 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{layerStats.totalPopulation.toLocaleString()}</strong>
-                    </div>
-                  )}
+        {/* Quick Analytics Summary Panel */}
+        {layerStats && (layerStats.totalHH !== null || layerStats.totalPopulation !== null) && (
+          <div className={`border p-3 rounded-lg space-y-2 transition-colors duration-300 ${
+            theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-100 text-slate-700"
+          }`}>
+            <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block font-mono flex items-center gap-1">
+              <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
+              Aggregate Estimations
+            </span>
+            <div className="grid grid-cols-2 gap-3 pt-0.5">
+              {layerStats.totalHH !== null && (
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-slate-400 font-semibold leading-none">Total Households:</span>
+                  <strong className={`text-sm font-black font-mono mt-1 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{layerStats.totalHH.toLocaleString()}</strong>
                 </div>
-              </div>
-            )}
-          </>
+              )}
+              {layerStats.totalPopulation !== null && (
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-slate-400 font-semibold leading-none">Total Population:</span>
+                  <strong className={`text-sm font-black font-mono mt-1 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{layerStats.totalPopulation.toLocaleString()}</strong>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Dynamic Category Layer Tabs */}

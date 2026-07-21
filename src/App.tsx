@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 import MapComponent from "./components/MapComponent";
 import AttributeTable from "./components/AttributeTable";
 import Login from "./components/Login";
+import ThemeToggle from "./components/ThemeToggle";
 import { motion } from "motion/react";
 import { 
   Database, 
@@ -18,9 +19,7 @@ import {
   Info,
   ServerCrash,
   RefreshCw,
-  LogOut,
-  Sun,
-  Moon
+  LogOut
 } from "lucide-react";
 
 export default function App() {
@@ -353,17 +352,7 @@ export default function App() {
         {/* Global summary specs */}
         <div className="flex items-center space-x-3 text-xs font-semibold text-slate-300">
           {/* Theme Toggling Button */}
-          <button
-            onClick={toggleTheme}
-            className="flex items-center justify-center p-2 rounded-lg bg-slate-850 hover:bg-slate-800 active:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/30 transition cursor-pointer"
-            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-          >
-            {theme === "light" ? (
-              <Moon className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" />
-            )}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} variant="header" />
 
           <button
             onClick={() => fetchFeatures(true)}
