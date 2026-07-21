@@ -279,6 +279,18 @@ export default function MapComponent({
             const geomType = feature?.geometry?.type?.toLowerCase() || "";
             const isLine = geomType.includes("line") || geomType.includes("string") || layerConf.type === "linestring";
             const isPolygon = geomType.includes("polygon") || layerConf.type === "polygon";
+            
+            if (isPolygon && !isLine) {
+              return {
+                color: "#ffffff",
+                fillColor: "transparent",
+                fill: false,
+                weight: layerConf.weight,
+                opacity: layerConf.opacity,
+                fillOpacity: 0,
+              };
+            }
+
             // Polygons should fill, lines should NEVER fill
             const shouldFill = isPolygon && !isLine;
 
@@ -326,6 +338,18 @@ export default function MapComponent({
             const geomType = feature?.geometry?.type?.toLowerCase() || "";
             const isLine = geomType.includes("line") || geomType.includes("string") || layerConf.type === "linestring";
             const isPolygon = geomType.includes("polygon") || layerConf.type === "polygon";
+
+            if (isPolygon && !isLine) {
+              return {
+                color: "#ffffff",
+                fillColor: "transparent",
+                fill: false,
+                weight: layerConf.weight,
+                opacity: layerConf.opacity,
+                fillOpacity: 0,
+              };
+            }
+
             // Polygons should fill, lines should NEVER fill
             const shouldFill = isPolygon && !isLine;
 
