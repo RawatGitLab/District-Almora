@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { GisFeature, LayerConfig, BaseMap } from "./types";
 import Sidebar from "./components/Sidebar";
 import MapComponent from "./components/MapComponent";
 import AttributeTable from "./components/AttributeTable";
+import { motion } from "motion/react";
 import { 
   Database, 
   Layers, 
@@ -16,7 +17,12 @@ import {
   Sparkles, 
   Info,
   ServerCrash,
-  RefreshCw
+  RefreshCw,
+  LogOut,
+  Lock,
+  User,
+  Sun,
+  Moon
 } from "lucide-react";
 
 export default function App() {
@@ -24,6 +30,66 @@ export default function App() {
   const [layers, setLayers] = useState<LayerConfig[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Theme State (defaulting to "light" as requested)
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("gis_portal_theme") as "light" | "dark") || "light";
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    localStorage.setItem("gis_portal_theme", nextTheme);
+  };
+
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem("gis_portal_token") === "almorageoportal-authenticated-token";
+  });
+  const [loginUsername, setLoginUsername] = useState<string>("");
+  const [loginPassword, setLoginPassword] = useState<string>("");
+  const [loginLoading, setLoginLoading] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginUsername || !loginPassword) {
+      setLoginError("Please enter both username and password.");
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginError(null);
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        localStorage.setItem("gis_portal_token", data.token);
+        setIsAuthenticated(true);
+        setLoginUsername("");
+        setLoginPassword("");
+      } else {
+        setLoginError(data.error || "Invalid username or password.");
+      }
+    } catch (err) {
+      setLoginError("Failed to connect to authentication service. Please check your network.");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("gis_portal_token");
+    setIsAuthenticated(false);
+  };
 
   // Map & Interaction state
   const [activeBaseMap, setActiveBaseMap] = useState<string>("satellite");
@@ -303,9 +369,13 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-100 overflow-hidden font-sans">
+    <div className={`flex flex-col h-screen w-screen overflow-hidden font-sans transition-colors duration-300 ${
+      theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900"
+    }`}>
       {/* Visual Navigation Header */}
-      <header className="h-14 bg-slate-900 text-slate-100 px-4 flex items-center justify-between border-b border-slate-950 shrink-0 select-none shadow-md">
+      <header className={`h-14 px-4 flex items-center justify-between border-b shrink-0 select-none shadow-md transition-colors duration-300 ${
+        theme === "dark" ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-slate-900 border-slate-950 text-slate-100"
+      }`}>
         <div className="flex items-center space-x-3">
           <div className="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm flex items-center justify-center">
             <Compass className="w-5 h-5 text-indigo-100" />
@@ -323,6 +393,19 @@ export default function App() {
 
         {/* Global summary specs */}
         <div className="flex items-center space-x-3 text-xs font-semibold text-slate-300">
+          {/* Theme Toggling Button */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center p-2 rounded-lg bg-slate-850 hover:bg-slate-800 active:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/30 transition cursor-pointer"
+            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+          >
+            {theme === "light" ? (
+              <Moon className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" />
+            )}
+          </button>
+
           <button
             onClick={() => fetchFeatures(true)}
             disabled={loading}
@@ -340,6 +423,16 @@ export default function App() {
             <Database className="w-3.5 h-3.5 text-pink-400" />
             <span>Entities: <strong className="text-white font-mono">{features.length}</strong></span>
           </div>
+          {isAuthenticated && (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 bg-rose-600/10 hover:bg-rose-600/20 active:bg-rose-600/30 text-rose-300 border border-rose-500/30 font-extrabold px-3 py-1.5 rounded-lg text-xs shadow-md transition duration-150 cursor-pointer select-none"
+              title="Logout from Almora GIS Portal"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>Logout</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -388,6 +481,7 @@ export default function App() {
           <>
             {/* Left Sidebar - Layer Configs and Basemaps */}
             <Sidebar
+              theme={theme}
               layers={layers}
               toggleLayer={toggleLayer}
               updateLayerOpacity={updateLayerOpacity}
@@ -430,6 +524,7 @@ export default function App() {
 
             {/* Right Pane Attribute Table */}
             <AttributeTable
+              theme={theme}
               features={features}
               layers={layers}
               selectedFeature={selectedFeature}
@@ -438,6 +533,114 @@ export default function App() {
               setIsCollapsed={setIsTableCollapsed}
               onRefresh={() => fetchFeatures(true)}
             />
+
+            {!isAuthenticated && (
+              <div className="absolute inset-0 z-[1000] bg-slate-950/25 flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className={`w-full max-w-md border rounded-2xl p-8 shadow-2xl relative overflow-hidden backdrop-blur-md transition-all duration-300 ${
+                    theme === "dark"
+                      ? "bg-slate-900/75 border-slate-700/40 text-white"
+                      : "bg-white/75 border-slate-200/80 text-slate-900"
+                  }`}
+                >
+                  {/* Decorative background blur circle */}
+                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  <div className="flex flex-col items-center mb-6 text-center select-none">
+                    <div className="bg-indigo-500/10 border border-indigo-500/25 p-3 rounded-full mb-3 text-indigo-400">
+                      <Compass className="w-8 h-8 animate-pulse" />
+                    </div>
+                    <h3 className={`text-xl font-bold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-800"}`}>Almora GIS Portal</h3>
+                    <p className={`text-xs mt-1 max-w-xs ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+                      Authorized Access Only. Please sign in to explore interactive district maps & planners.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    {loginError && (
+                      <div className="bg-rose-500/10 border border-rose-500/30 text-rose-350 p-3 rounded-lg flex items-start gap-2.5 text-xs animate-shake">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                        <span>{loginError}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="login-username" className={`text-[11px] font-bold uppercase tracking-wider block ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+                        Username
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          id="login-username"
+                          type="text"
+                          required
+                          value={loginUsername}
+                          onChange={(e) => setLoginUsername(e.target.value)}
+                          placeholder="Enter username"
+                          className={`w-full border focus:ring-1 text-sm pl-10 pr-4 py-2 rounded-lg transition outline-none ${
+                            theme === "dark"
+                              ? "bg-slate-950/50 border-slate-700/60 focus:border-indigo-500/80 focus:ring-indigo-500/80 text-white placeholder-slate-500"
+                              : "bg-white/50 border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-slate-900 placeholder-slate-400"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="login-password" className={`text-[11px] font-bold uppercase tracking-wider block ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          id="login-password"
+                          type="password"
+                          required
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          placeholder="Enter password"
+                          className={`w-full border focus:ring-1 text-sm pl-10 pr-4 py-2 rounded-lg transition outline-none ${
+                            theme === "dark"
+                              ? "bg-slate-950/50 border-slate-700/60 focus:border-indigo-500/80 focus:ring-indigo-500/80 text-white placeholder-slate-500"
+                              : "bg-white/50 border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-slate-900 placeholder-slate-400"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loginLoading}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:bg-indigo-800/40 text-white font-extrabold py-2.5 px-4 rounded-lg text-sm shadow-lg shadow-indigo-500/15 transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed mt-2"
+                    >
+                      {loginLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Verifying Credentials...</span>
+                        </>
+                      ) : (
+                        <span>Explore Geo Portal</span>
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Almora Geoportal Footer */}
+                  <div className={`mt-6 pt-4 border-t text-center ${
+                    theme === "dark" ? "border-slate-800/60" : "border-slate-200/80"
+                  }`}>
+                    <span className={`text-[9px] font-bold tracking-[0.2em] uppercase ${
+                      theme === "dark" ? "text-slate-500" : "text-slate-400"
+                    }`}>
+                      ALMORA • GEOPORTAL
+                    </span>
+                  </div>
+                </motion.div>
+              </div>
+            )}
           </>
         )}
       </main>

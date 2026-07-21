@@ -76,6 +76,19 @@ async function getMongoClient() {
 // Enable JSON parser
 app.use(express.json());
 
+// API: Login Endpoint
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+  const expectedUsername = process.env.GIS_PORTAL_USERNAME;
+  const expectedPassword = process.env.GIS_PORTAL_PASSWORD;
+
+  if (username === expectedUsername && password === expectedPassword) {
+    return res.json({ success: true, token: "almorageoportal-authenticated-token" });
+  } else {
+    return res.status(401).json({ success: false, error: "Invalid username or password" });
+  }
+});
+
 // API: Debug MongoDB schema
 app.get("/api/debug", async (req, res) => {
   try {
@@ -234,12 +247,6 @@ app.get("/api/layers", async (req, res) => {
         const hue = (index * 137.5) % 360; 
         color = `hsl(${hue}, 70%, 45%)`;
         fillColor = `hsl(${hue}, 70%, 65%)`;
-      }
-
-      if (type === "polygon") {
-        color = "#ffffff";
-        fillColor = "transparent";
-        fillOpacity = 0;
       }
 
       // Default visible layers: keep them minimal so page is clean and boots fast

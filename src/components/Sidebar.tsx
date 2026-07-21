@@ -3,6 +3,7 @@ import { Layers, Globe, Sliders, CheckSquare, Square, Check, RotateCcw, Database
 import { LayerConfig, BaseMap } from "../types";
 
 interface SidebarProps {
+  theme?: "light" | "dark";
   layers: LayerConfig[];
   toggleLayer: (id: string) => void;
   updateLayerOpacity: (id: string, opacity: number) => void;
@@ -65,6 +66,7 @@ const ORIGINAL_LAYERS = new Set([
 
 
 export default function Sidebar({
+  theme = "light",
   layers,
   toggleLayer,
   updateLayerOpacity,
@@ -188,17 +190,21 @@ export default function Sidebar({
   }, [layers]);
 
   const renderLayerItem = (layer: LayerConfig) => (
-    <div key={layer.id} className="p-3 flex flex-col gap-2 hover:bg-slate-50 transition-colors">
+    <div key={layer.id} className={`p-3 flex flex-col gap-2 transition-colors duration-150 border-b last:border-b-0 ${
+      theme === "dark" ? "hover:bg-slate-800/40 border-slate-800/50" : "hover:bg-slate-50 border-slate-100"
+    }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2.5 min-w-0">
           {/* Interactive toggle */}
           <button
             onClick={() => toggleLayer(layer.id)}
             disabled={layer.loading}
-            className={`p-1 rounded-md transition duration-150 ${
+            className={`p-1 rounded-md transition duration-150 cursor-pointer ${
               layer.visible 
                 ? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100" 
-                : "text-slate-400 bg-slate-100 hover:bg-slate-200"
+                : theme === "dark"
+                  ? "text-slate-400 bg-slate-800 hover:bg-slate-750"
+                  : "text-slate-400 bg-slate-100 hover:bg-slate-200"
             }`}
           >
             {layer.loading ? (
@@ -237,7 +243,11 @@ export default function Sidebar({
               <span className="w-3 h-3 bg-slate-300 border border-slate-400 inline-block shrink-0" />
             )}
 
-            <span className={`text-xs font-semibold ${layer.visible ? 'text-slate-800' : 'text-slate-400'} truncate`} title={layer.name}>
+            <span className={`text-xs font-semibold truncate ${
+              layer.visible 
+                ? theme === "dark" ? "text-indigo-200 font-bold" : "text-slate-800 font-bold" 
+                : theme === "dark" ? "text-slate-500" : "text-slate-400"
+            }`} title={layer.name}>
               {layer.name}
             </span>
           </div>
@@ -246,7 +256,11 @@ export default function Sidebar({
         {/* Locate/zoom button */}
         <button
           onClick={() => onZoomToLayer(layer.name)}
-          className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition duration-150 shrink-0"
+          className={`p-1 rounded transition duration-150 shrink-0 cursor-pointer ${
+            theme === "dark"
+              ? "text-slate-400 hover:text-indigo-400 hover:bg-slate-800"
+              : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+          }`}
           title={`Zoom map to ${layer.name}`}
         >
           <Compass className="w-3.5 h-3.5" />
@@ -263,7 +277,9 @@ export default function Sidebar({
               id={`color-${layer.id}`}
               value={layer.color}
               onChange={(e) => updateLayerColor(layer.id, e.target.value)}
-              className="w-4 h-4 rounded cursor-pointer border border-slate-300 p-0 block bg-transparent"
+              className={`w-4 h-4 rounded cursor-pointer p-0 block bg-transparent border ${
+                theme === "dark" ? "border-slate-700" : "border-slate-300"
+              }`}
               title="Change layer color"
             />
           </div>
@@ -278,10 +294,14 @@ export default function Sidebar({
               step="0.05"
               value={layer.opacity}
               onChange={(e) => updateLayerOpacity(layer.id, parseFloat(e.target.value))}
-              className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-indigo-600 ${
+                theme === "dark" ? "bg-slate-800" : "bg-slate-200"
+              }`}
               title="Adjust transparency"
             />
-            <span className="text-[9px] text-slate-500 font-mono w-6 text-right">
+            <span className={`text-[9px] font-mono w-6 text-right ${
+              theme === "dark" ? "text-slate-400" : "text-slate-500"
+            }`}>
               {Math.round(layer.opacity * 100)}%
             </span>
           </div>
@@ -359,15 +379,23 @@ export default function Sidebar({
 
   if (isCollapsed) {
     return (
-      <aside className="w-12 border-r border-slate-200 bg-slate-50 flex flex-col items-center pt-16 pb-4 h-full shrink-0 shadow-sm font-sans transition-all duration-300">
+      <aside className={`w-12 border-r flex flex-col items-center pt-16 pb-4 h-full shrink-0 shadow-sm font-sans transition-all duration-300 ${
+        theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"
+      }`}>
         <button
           onClick={() => setIsCollapsed(false)}
           title="Open Map Controller"
-          className="p-2 text-slate-600 hover:text-indigo-600 rounded-md hover:bg-indigo-50 border border-slate-200 bg-white shadow-sm transition duration-150 mt-4 mb-8 cursor-pointer"
+          className={`p-2 rounded-md shadow-sm transition duration-150 mt-4 mb-8 cursor-pointer border ${
+            theme === "dark"
+              ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-indigo-400 hover:bg-slate-750"
+              : "bg-white border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+          }`}
         >
           <Maximize2 className="w-4 h-4" />
         </button>
-        <div className="vertical-text text-[10px] uppercase font-bold tracking-widest text-slate-400 font-sans select-none whitespace-nowrap origin-center rotate-90 mt-16 leading-none flex items-center gap-1.5">
+        <div className={`vertical-text text-[10px] uppercase font-bold tracking-widest font-sans select-none whitespace-nowrap origin-center rotate-90 mt-16 leading-none flex items-center gap-1.5 ${
+          theme === "dark" ? "text-slate-400" : "text-slate-400"
+        }`}>
           <Database className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
           Basemaps & Layers
         </div>
@@ -376,14 +404,18 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="w-80 border-r border-slate-200 bg-slate-50 flex flex-col h-full shrink-0 shadow-sm font-sans">
+    <aside className={`w-80 border-r flex flex-col h-full shrink-0 shadow-sm font-sans transition-colors duration-300 ${
+      theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-slate-50 border-slate-200 text-slate-900"
+    }`}>
       {/* Sidebar Header */}
-      <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
+      <div className={`p-4 border-b flex items-center justify-between transition-colors duration-300 ${
+        theme === "dark" ? "bg-slate-950 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-850"
+      }`}>
         <div className="flex items-center space-x-2">
-          <Database className="w-5 h-5 text-indigo-600 animate-pulse" />
+          <Database className="w-5 h-5 text-indigo-500 animate-pulse" />
           <div>
-            <h1 className="text-sm font-bold text-slate-800 tracking-tight leading-none">Geo Spatial Server</h1>
-            <span className="text-[10px] text-slate-500 font-medium">MongoDB Database</span>
+            <h1 className={`text-sm font-bold tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-slate-800"}`}>Geo Spatial Server</h1>
+            <span className={`text-[10px] font-medium ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>MongoDB Database</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -394,7 +426,9 @@ export default function Sidebar({
             className={`p-1.5 rounded-md transition duration-150 border border-transparent cursor-pointer ${
               anyLayerActive
                 ? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
-                : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                : theme === "dark"
+                  ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {layers.some((l) => l.loading) ? (
@@ -408,7 +442,9 @@ export default function Sidebar({
           <button
             onClick={() => setIsCollapsed(true)}
             title="Minimize Panel"
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition duration-150 border border-transparent cursor-pointer"
+            className={`p-1.5 rounded-md transition duration-150 border border-transparent cursor-pointer ${
+              theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            }`}
           >
             <Minimize2 className="w-4 h-4" />
           </button>
@@ -422,7 +458,9 @@ export default function Sidebar({
             onClick={() => setIsLayersCollapsed(!isLayersCollapsed)}
             className="flex items-center justify-between pt-1 w-full text-left bg-transparent border-0 p-0 focus:outline-none group cursor-pointer"
           >
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
+            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:text-indigo-400" : "text-slate-700 hover:text-indigo-600"
+            }`}>
               <Layers className="w-4 h-4 text-indigo-500" />
               LAYERS ({layers.length})
               {isLayersCollapsed ? (
@@ -432,7 +470,9 @@ export default function Sidebar({
               )}
             </span>
             {!isLayersCollapsed && (
-              <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded-full">
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                theme === "dark" ? "bg-indigo-950/40 text-indigo-300" : "bg-indigo-50 text-indigo-700"
+              }`}>
                 {totalFeatures} Geometries Loaded
               </span>
             )}
@@ -441,12 +481,20 @@ export default function Sidebar({
           {!isLayersCollapsed && (
             <div className="space-y-4">
               {/* Collapsible Administrative Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
+              <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+              }`}>
                 <button
                   onClick={() => setIsAdminCollapsed(!isAdminCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
+                  className={`w-full flex items-center justify-between p-2.5 transition-colors text-left font-sans focus:outline-none border-b cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-slate-950/40 hover:bg-slate-800 border-slate-800/80 text-white"
+                      : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200/60 text-slate-850"
+                  }`}
                 >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-200" : "text-slate-700"
+                  }`}>
                     <Layers className="w-3.5 h-3.5 text-indigo-500" />
                     Administrative Layer ({administrativeLayers.length})
                   </span>
@@ -458,7 +506,9 @@ export default function Sidebar({
                 </button>
                 
                 {!isAdminCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100">
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
                     {administrativeLayers.length === 0 ? (
                       <div className="p-4 text-center text-xs text-slate-400 font-medium">
                         No administrative layers loaded.
@@ -471,12 +521,20 @@ export default function Sidebar({
               </div>
 
               {/* Collapsible Education Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
+              <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+              }`}>
                 <button
                   onClick={() => setIsEducationCollapsed(!isEducationCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
+                  className={`w-full flex items-center justify-between p-2.5 transition-colors text-left font-sans focus:outline-none border-b cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-slate-950/40 hover:bg-slate-800 border-slate-800/80 text-white"
+                      : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200/60 text-slate-850"
+                  }`}
                 >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-200" : "text-slate-700"
+                  }`}>
                     <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
                     Education Layer ({educationLayers.length})
                   </span>
@@ -488,7 +546,9 @@ export default function Sidebar({
                 </button>
                 
                 {!isEducationCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
                     {educationLayers.length === 0 ? (
                       <div className="p-4 text-center text-xs text-slate-400 font-medium">
                         No education layers loaded.
@@ -501,12 +561,20 @@ export default function Sidebar({
               </div>
 
               {/* Collapsible Health Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
+              <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+              }`}>
                 <button
                   onClick={() => setIsHealthCollapsed(!isHealthCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
+                  className={`w-full flex items-center justify-between p-2.5 transition-colors text-left font-sans focus:outline-none border-b cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-slate-950/40 hover:bg-slate-800 border-slate-800/80 text-white"
+                      : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200/60 text-slate-850"
+                  }`}
                 >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-200" : "text-slate-700"
+                  }`}>
                     <Heart className="w-3.5 h-3.5 text-rose-500" />
                     Health Layer ({healthLayers.length})
                   </span>
@@ -518,7 +586,9 @@ export default function Sidebar({
                 </button>
                 
                 {!isHealthCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
                     {healthLayers.length === 0 ? (
                       <div className="p-4 text-center text-xs text-slate-400 font-medium">
                         No health layers loaded.
@@ -531,12 +601,20 @@ export default function Sidebar({
               </div>
 
               {/* Collapsible Police Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
+              <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+              }`}>
                 <button
                   onClick={() => setIsPoliceCollapsed(!isPoliceCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
+                  className={`w-full flex items-center justify-between p-2.5 transition-colors text-left font-sans focus:outline-none border-b cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-slate-950/40 hover:bg-slate-800 border-slate-800/80 text-white"
+                      : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200/60 text-slate-850"
+                  }`}
                 >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-200" : "text-slate-700"
+                  }`}>
                     <Shield className="w-3.5 h-3.5 text-blue-500" />
                     Police Layer ({policeLayers.length})
                   </span>
@@ -548,7 +626,9 @@ export default function Sidebar({
                 </button>
                 
                 {!isPoliceCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
                     {policeLayers.length === 0 ? (
                       <div className="p-4 text-center text-xs text-slate-400 font-medium">
                         No police layers loaded.
@@ -561,12 +641,20 @@ export default function Sidebar({
               </div>
 
               {/* Collapsible River Layer Section */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/30 shadow-sm">
+              <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+              }`}>
                 <button
                   onClick={() => setIsRiverCollapsed(!isRiverCollapsed)}
-                  className="w-full flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/60 transition-colors text-left font-sans focus:outline-none border-b border-slate-200/60 cursor-pointer"
+                  className={`w-full flex items-center justify-between p-2.5 transition-colors text-left font-sans focus:outline-none border-b cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-slate-950/40 hover:bg-slate-800 border-slate-800/80 text-white"
+                      : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200/60 text-slate-850"
+                  }`}
                 >
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-200" : "text-slate-700"
+                  }`}>
                     <Waves className="w-3.5 h-3.5 text-cyan-500" />
                     River Layer ({riverLayers.length})
                   </span>
@@ -578,7 +666,9 @@ export default function Sidebar({
                 </button>
                 
                 {!isRiverCollapsed && (
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
                     {riverLayers.length === 0 ? (
                       <div className="p-4 text-center text-xs text-slate-400 font-medium">
                         No river layers loaded.
@@ -590,25 +680,33 @@ export default function Sidebar({
                 )}
               </div>
 
-
-
               {/* Other Layers Section */}
               {otherLayers.length > 0 && (
-                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-                  <div className="p-2.5 bg-slate-100/50 border-b border-slate-200/60">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 flex items-center gap-1.5">
+                <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                  theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+                }`}>
+                  <div className={`p-2.5 border-b ${
+                    theme === "dark" ? "bg-slate-950/40 border-slate-800/80" : "bg-slate-100/50 border-slate-200/60"
+                  }`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider pl-1 flex items-center gap-1.5 ${
+                      theme === "dark" ? "text-slate-300" : "text-slate-500"
+                    }`}>
                       <Sliders className="w-3 h-3 text-slate-400" />
                       Other Layers ({otherLayers.length})
                     </span>
                   </div>
-                  <div className="bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
                     {otherLayers.map((layer) => renderLayerItem(layer))}
                   </div>
                 </div>
               )}
 
               {layers.length === 0 && (
-                <div className="p-6 text-center text-xs text-slate-400 font-medium bg-white border border-slate-200 rounded-lg shadow-sm">
+                <div className={`p-6 text-center text-xs font-medium border rounded-lg shadow-sm ${
+                  theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-400"
+                }`}>
                   No layers found in database.
                 </div>
               )}
@@ -622,7 +720,9 @@ export default function Sidebar({
             onClick={() => setIsBaseMapCollapsed(!isBaseMapCollapsed)}
             className="flex items-center justify-between w-full text-left bg-transparent border-0 p-0 focus:outline-none group cursor-pointer"
           >
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 pt-2 hover:text-emerald-600 transition-colors">
+            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 pt-2 transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:text-emerald-400" : "text-slate-700 hover:text-emerald-600"
+            }`}>
               <Globe className="w-4 h-4 text-emerald-500" />
               BASE MAP GALLERY
               {isBaseMapCollapsed ? (
@@ -643,12 +743,18 @@ export default function Sidebar({
                     onClick={() => setBaseMap(map.id)}
                     className={`group relative text-left rounded-lg overflow-hidden border p-2 transition-all duration-200 ${
                       isSelected 
-                        ? "border-indigo-500 ring-2 ring-indigo-500/10 bg-indigo-50/50" 
-                        : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50"
+                        ? theme === "dark"
+                          ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-950/40"
+                          : "border-indigo-500 ring-2 ring-indigo-500/10 bg-indigo-50/50" 
+                        : theme === "dark"
+                          ? "border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-900/60"
+                          : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50"
                     }`}
                   >
                     {/* Styled Thumbnail representation (No external asset dependency) */}
-                    <div className="h-14 w-full rounded-md mb-1.5 overflow-hidden border border-slate-100 flex items-center justify-center relative">
+                    <div className={`h-14 w-full rounded-md mb-1.5 overflow-hidden flex items-center justify-center relative border ${
+                      theme === "dark" ? "border-slate-800" : "border-slate-100"
+                    }`}>
                       {/* Simulated visual textures */}
                       {map.id === "osm" && (
                         <div className="absolute inset-0 bg-sky-50 grid grid-cols-4 grid-rows-4 opacity-75">
@@ -702,10 +808,14 @@ export default function Sidebar({
                       </span>
                     </div>
 
-                    <span className={`text-[11px] font-bold block truncate leading-tight ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                    <span className={`text-[11px] font-bold block truncate leading-tight ${
+                      isSelected 
+                        ? theme === "dark" ? "text-indigo-200 font-extrabold" : "text-indigo-900 font-extrabold" 
+                        : theme === "dark" ? "text-slate-300" : "text-slate-700"
+                    }`}>
                       {map.name}
                     </span>
-                    <p className="text-[9px] text-slate-400 line-clamp-1 leading-snug">
+                    <p className="text-[9px] text-slate-450 line-clamp-1 leading-snug">
                       {map.desc}
                     </p>
                   </button>
@@ -721,13 +831,15 @@ export default function Sidebar({
             onClick={() => setIsMeasureCollapsed(!isMeasureCollapsed)}
             className="flex items-center justify-between w-full text-left bg-transparent border-0 p-0 focus:outline-none group cursor-pointer"
           >
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
+            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:text-rose-400" : "text-slate-700 hover:text-rose-600"
+            }`}>
               <Ruler className="w-4 h-4 text-rose-500 animate-pulse" />
               SPATIAL MEASUREMENTS
               {isMeasureCollapsed ? (
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 transition-colors" />
               ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 transition-colors" />
               )}
             </span>
             {measurePoints.length > 0 && !isMeasureCollapsed && (
@@ -738,7 +850,9 @@ export default function Sidebar({
           </button>
 
           {!isMeasureCollapsed && (
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-3.5 space-y-4">
+            <div className={`border rounded-lg shadow-sm p-3.5 space-y-4 transition-colors duration-300 ${
+              theme === "dark" ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200"
+            }`}>
               {/* Tool Selection */}
               <div className="flex gap-2">
                 <button
@@ -750,8 +864,10 @@ export default function Sidebar({
                   }}
                   className={`flex-1 flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition duration-150 cursor-pointer ${
                     measureMode === "distance"
-                      ? "border-rose-500 bg-rose-50/50 text-rose-700 ring-2 ring-rose-500/10 font-bold"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium"
+                      ? "border-rose-500 bg-rose-500/10 text-rose-400 ring-2 ring-rose-500/20 font-bold"
+                      : theme === "dark"
+                        ? "border-slate-800 text-slate-400 hover:bg-slate-800 hover:border-slate-700 font-medium"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium"
                   }`}
                 >
                   <Ruler className="w-4 h-4 mb-1 text-rose-500" />
@@ -767,8 +883,10 @@ export default function Sidebar({
                   }}
                   className={`flex-1 flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition duration-150 cursor-pointer ${
                     measureMode === "area"
-                      ? "border-emerald-500 bg-emerald-50/40 text-emerald-700 ring-2 ring-emerald-500/10 font-bold"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium"
+                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-400 ring-2 ring-emerald-500/20 font-bold"
+                      : theme === "dark"
+                        ? "border-slate-800 text-slate-400 hover:bg-slate-800 hover:border-slate-700 font-medium"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium"
                   }`}
                 >
                   <span className="text-xs mb-1 font-mono leading-none">⬡</span>
@@ -778,22 +896,26 @@ export default function Sidebar({
 
               {/* Status and instruction helpers */}
               {measureMode === "none" ? (
-                <div className="text-center p-3 py-4 bg-slate-50 rounded-lg border border-slate-100/70">
-                  <p className="text-[11px] text-slate-400 font-semibold leading-normal">
+                <div className={`text-center p-3 py-4 rounded-lg border transition-colors duration-300 ${
+                  theme === "dark" ? "bg-slate-950/40 border-slate-800/60" : "bg-slate-50 border-slate-100/70"
+                }`}>
+                  <p className={`text-[11px] font-semibold leading-normal ${theme === "dark" ? "text-slate-550" : "text-slate-400"}`}>
                     Select a tool above, then click anywhere on the map to start measuring length or area.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3.5">
-                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg space-y-2">
+                  <div className={`border p-3 rounded-lg space-y-2 transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-950/40 border-slate-800/60" : "bg-slate-50 border-slate-100"
+                  }`}>
                     <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block font-mono">
                       Live Computation
                     </span>
                     
                     {measureMode === "distance" && (
                       <div className="space-y-1">
-                        <span className="text-[10px] font-semibold text-slate-500">Cumulative Distance:</span>
-                        <div className="text-sm font-black text-rose-600 font-mono tracking-tight leading-none">
+                        <span className={`text-[10px] font-semibold ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Cumulative Distance:</span>
+                        <div className="text-sm font-black text-rose-500 font-mono tracking-tight leading-none">
                           {formatDistance(totalDistanceMeters)}
                         </div>
                       </div>
@@ -801,8 +923,8 @@ export default function Sidebar({
 
                     {measureMode === "area" && (
                       <div className="space-y-1">
-                        <span className="text-[10px] font-semibold text-slate-500">Enclosed Area:</span>
-                        <div className="text-sm font-black text-emerald-600 font-mono tracking-tight leading-none">
+                        <span className={`text-[10px] font-semibold ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Enclosed Area:</span>
+                        <div className="text-sm font-black text-emerald-555 font-mono tracking-tight leading-none">
                           {measurePoints.length >= 3 ? formatArea(polygonAreaSqMeters) : "Place ≥ 3 points"}
                         </div>
                       </div>
@@ -821,7 +943,11 @@ export default function Sidebar({
                       <button
                         type="button"
                         onClick={() => setMeasurePoints((prev) => prev.slice(0, -1))}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-md text-[10px] font-bold transition cursor-pointer"
+                        className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          theme === "dark"
+                            ? "border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                            : "border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50"
+                        }`}
                       >
                         <Undo className="w-3 h-3 text-slate-500" />
                         Undo Point
@@ -830,7 +956,11 @@ export default function Sidebar({
                       <button
                         type="button"
                         onClick={() => setMeasurePoints([])}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border border-rose-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50/50 rounded-md text-[10px] font-bold transition cursor-pointer"
+                        className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 border rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          theme === "dark"
+                            ? "border-rose-950 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40"
+                            : "border-rose-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50/50"
+                        }`}
                       >
                         <Trash2 className="w-3 h-3 text-rose-500" />
                         Clear All
@@ -845,15 +975,19 @@ export default function Sidebar({
       </div>
 
       {/* Sidebar Footer Banner */}
-      <div className="p-3 border-t border-slate-200 bg-white">
-        <div className="bg-slate-50 border border-slate-100 rounded-md p-2 flex flex-col gap-1 text-[11px] text-slate-500 font-medium">
+      <div className={`p-3 border-t transition-colors duration-300 ${
+        theme === "dark" ? "border-slate-850 bg-slate-950" : "border-slate-200 bg-white"
+      }`}>
+        <div className={`border rounded-md p-2 flex flex-col gap-1 text-[11px] font-medium transition-colors duration-300 ${
+          theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-100 text-slate-500"
+        }`}>
           <div className="flex justify-between">
             <span>State Code (Uttarakhand):</span>
-            <span className="font-mono text-slate-700 font-bold">05</span>
+            <span className={`font-mono font-bold ${theme === "dark" ? "text-slate-200" : "text-slate-700"}`}>05</span>
           </div>
           <div className="flex justify-between">
             <span>District (Almora):</span>
-            <span className="font-mono text-slate-700 font-bold">064</span>
+            <span className={`font-mono font-bold ${theme === "dark" ? "text-slate-200" : "text-slate-700"}`}>064</span>
           </div>
         </div>
       </div>

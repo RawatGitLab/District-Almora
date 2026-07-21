@@ -3,6 +3,7 @@ import { GisFeature, LayerConfig } from "../types";
 import { Search, MapPin, Minimize2, Maximize2, AlertTriangle, BarChart3, ChevronDown, ChevronUp, Database, Wifi, Cpu, Activity, Table, RefreshCw } from "lucide-react";
 
 interface AttributeTableProps {
+  theme?: "light" | "dark";
   features: GisFeature[];
   layers: LayerConfig[];
   selectedFeature: GisFeature | null;
@@ -13,6 +14,7 @@ interface AttributeTableProps {
 }
 
 export default function AttributeTable({
+  theme = "light",
   features,
   layers,
   selectedFeature,
@@ -33,100 +35,92 @@ export default function AttributeTable({
         layer.visible &&
         features.some(
           (f) =>
-            f.properties.layer === layer.name ||
-            f.properties.Layer === layer.name ||
-            f.properties.LAYER === layer.name
+            f.properties &&
+            (f.properties.layer === layer.name ||
+              (layer.id === "0-District-Boundary" && f.properties.layer === "District Boundary") ||
+              (layer.id === "1-Block-Boundary" && f.properties.layer === "Block Boundary") ||
+              (layer.id === "2-Tehsil-Boundary" && f.properties.layer === "Tehsil Boundary"))
         )
     );
   }, [layers, features]);
 
-  // Determine current layer based on selected feature, or default to first active layer
+  // Current selected active layer tab
+  const [activeLayerId, setActiveLayerId] = useState<string>("");
+
   const currentLayer = useMemo(() => {
     if (activeLayersWithData.length === 0) return null;
-    
-    if (selectedFeature) {
-        const featLayerName = selectedFeature.properties.layer ||
-                              selectedFeature.properties.Layer ||
-                              selectedFeature.properties.LAYER;
-        const matched = activeLayersWithData.find((l) => l.name === featLayerName);
-        if (matched) return matched;
-    }
-    return activeLayersWithData[0];
-  }, [activeLayersWithData, selectedFeature]);
+    const found = activeLayersWithData.find((l) => l.id === activeLayerId);
+    return found || activeLayersWithData[0];
+  }, [activeLayersWithData, activeLayerId]);
 
-  // Get all features for the current selected layer
+  // Sync activeLayerId if previous one becomes inactive
+  useEffect(() => {
+    if (currentLayer && currentLayer.id !== activeLayerId) {
+      setActiveLayerId(currentLayer.id);
+    }
+  }, [currentLayer, activeLayerId]);
+
+  // Filter features for current active layer
   const layerFeatures = useMemo(() => {
     if (!currentLayer) return [];
-    return features.filter(
-      (f) =>
-        f.properties.layer === currentLayer.name ||
-        f.properties.Layer === currentLayer.name ||
-        f.properties.LAYER === currentLayer.name
-    );
+    return features.filter((f) => {
+      if (!f.properties) return false;
+      const layerProp = f.properties.layer;
+      
+      // Handle MongoDB specific matching
+      if (currentLayer.id === "0-District-Boundary" && layerProp === "District Boundary") return true;
+      if (currentLayer.id === "1-Block-Boundary" && layerProp === "Block Boundary") return true;
+      if (currentLayer.id === "2-Tehsil-Boundary" && layerProp === "Tehsil Boundary") return true;
+      
+      return layerProp === currentLayer.name;
+    });
   }, [features, currentLayer]);
 
-  // Calculate dynamic properties keys for the table columns
+  // Extract schema columns dynamically based on available attributes in features
   const columnKeys = useMemo(() => {
     if (layerFeatures.length === 0) return [];
     const keysSet = new Set<string>();
     
-    // Scan up to 10 sample features to establish common keys
-    layerFeatures.slice(0, 15).forEach((feat) => {
-      Object.keys(feat.properties).forEach((k) => {
-        // Exclude system fields
-        if (
-          ![
-            "_id",
-            "id",
-            "type",
-            "geometry",
-            "layer",
-            "Layer",
-            "LAYER",
-            "geom_type",
-            "coordinates",
-            "FeatureCollection",
-          ].includes(k)
-        ) {
-          keysSet.add(k);
-        }
-      });
+    // Core informative attributes to prioritize in the table representation
+    const priorityKeys = [
+      "name", "Name", "village_name", "Village_Name", "VILL_NAME", "Block_Name", "Tehsil_Nam",
+      "no_hh", "No_HH", "households", "TOT_P", "tot_p", "population", "Population",
+      "area_sq_km", "Area_Sq_Km", "area", "type", "Type", "Status", "status"
+    ];
+
+    layerFeatures.forEach((feat) => {
+      if (feat.properties) {
+        Object.keys(feat.properties).forEach((k) => {
+          if (k !== "layer" && k !== "id" && k !== "fid" && k !== "color" && k !== "opacity") {
+            keysSet.add(k);
+          }
+        });
+      }
     });
 
-    // Sort to keep important names early
-    const keys = Array.from(keysSet);
-    const primaryKeys = ["name", "Name", "village_name", "Village_Name", "state", "State", "district", "District", "No_HH", "no_hh", "TOT_P", "tot_p", "pop", "Population"];
+    const allKeys = Array.from(keysSet);
     
-    keys.sort((a, b) => {
-      const idxA = primaryKeys.findIndex(k => k.toLowerCase() === a.toLowerCase());
-      const idxB = primaryKeys.findIndex(k => k.toLowerCase() === b.toLowerCase());
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
+    // Sort keys putting prioritised ones first, followed by others alphabetically
+    return allKeys.sort((a, b) => {
+      const aIndex = priorityKeys.indexOf(a);
+      const bIndex = priorityKeys.indexOf(b);
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
       return a.localeCompare(b);
     });
-
-    return keys;
   }, [layerFeatures]);
 
-  // Filter features based on search terms
+  // Search filter
   const filteredFeatures = useMemo(() => {
     if (!searchTerm.trim()) return layerFeatures;
-    const term = searchTerm.toLowerCase();
-
-    return layerFeatures.filter((f) => {
-      // Check properties values
-      const matchesProperty = Object.entries(f.properties).some(([key, val]) => {
-        if (typeof val === "string") {
-          return val.toLowerCase().includes(term);
-        }
-        if (typeof val === "number") {
-          return val.toString().includes(term);
-        }
-        return false;
+    const lower = searchTerm.toLowerCase();
+    return layerFeatures.filter((feat) => {
+      if (!feat.properties) return false;
+      return Object.values(feat.properties).some((val) => {
+        if (val === null || val === undefined) return false;
+        return String(val).toLowerCase().includes(lower);
       });
-
-      return matchesProperty;
     });
   }, [layerFeatures, searchTerm]);
 
@@ -178,11 +172,17 @@ export default function AttributeTable({
 
   if (isCollapsed) {
     return (
-      <div className="w-12 border-l border-slate-200 bg-white flex flex-col items-center pt-16 pb-4 shrink-0 transition-all duration-300">
+      <div className={`w-12 border-l flex flex-col items-center pt-16 pb-4 shrink-0 transition-all duration-300 ${
+        theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-white border-slate-200 text-slate-600"
+      }`}>
         <button
           onClick={() => setIsCollapsed(false)}
           title="Open Attribute Table"
-          className="p-2 text-slate-600 hover:text-indigo-600 rounded-md hover:bg-indigo-50 border border-slate-200 bg-slate-50 shadow-sm transition duration-150 mt-4 mb-8"
+          className={`p-2 rounded-md shadow-sm transition duration-150 mt-4 mb-8 border cursor-pointer ${
+            theme === "dark"
+              ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-indigo-400 hover:bg-slate-750"
+              : "bg-slate-50 border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+          }`}
         >
           <Maximize2 className="w-4 h-4" />
         </button>
@@ -195,29 +195,39 @@ export default function AttributeTable({
   }
 
   return (
-    <div className="w-[450px] border-l border-slate-200 bg-white flex flex-col h-full shrink-0 shadow-sm font-sans transition-all duration-300">
+    <div className={`w-[450px] border-l flex flex-col h-full shrink-0 shadow-sm font-sans transition-colors duration-300 ${
+      theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+    }`}>
       {/* Table Header Controls */}
-      <div className="p-4 border-b border-slate-200 bg-white space-y-3">
+      <div className={`p-4 border-b space-y-3 transition-colors duration-300 ${
+        theme === "dark" ? "bg-slate-950 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-850"
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Table className="w-5 h-5 text-indigo-600" />
+            <Table className="w-5 h-5 text-indigo-550" />
             <div>
-              <h2 className="text-sm font-bold text-slate-800 leading-none">Attribute Table</h2>
-              <p className="text-[10px] text-slate-400 mt-0.5">Explore feature details, properties, and stats</p>
+              <h2 className={`text-sm font-bold leading-none ${theme === "dark" ? "text-white" : "text-slate-800"}`}>Attribute Table</h2>
+              <p className={`text-[10px] mt-0.5 ${theme === "dark" ? "text-slate-400" : "text-slate-400"}`}>Explore feature details, properties, and stats</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setIsFormCollapsed(!isFormCollapsed)}
               title={isFormCollapsed ? "Expand Filters" : "Collapse Filters"}
-              className="p-1.5 text-slate-500 hover:text-slate-800 rounded-md hover:bg-slate-50 transition duration-150 border border-slate-200 flex items-center justify-center"
+              className={`p-1.5 rounded-md transition duration-150 border cursor-pointer flex items-center justify-center ${
+                theme === "dark"
+                  ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750 hover:text-white"
+                  : "text-slate-500 hover:text-slate-800 bg-slate-50 border-slate-200"
+              }`}
             >
               {isFormCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={() => setIsCollapsed(true)}
               title="Minimize panel"
-              className="p-1.5 text-slate-500 hover:text-slate-800 rounded-md hover:bg-slate-50 transition duration-150 border border-transparent"
+              className={`p-1.5 rounded-md transition duration-150 border border-transparent cursor-pointer ${
+                theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800" : "text-slate-550 hover:text-slate-800 hover:bg-slate-50"
+              }`}
             >
               <Minimize2 className="w-3.5 h-3.5" />
             </button>
@@ -235,77 +245,156 @@ export default function AttributeTable({
                   placeholder={`Search in ${currentLayer.name}...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full text-xs pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-indigo-500 focus:bg-white transition"
+                  className={`w-full text-xs pl-9 pr-4 py-1.5 rounded-lg border transition placeholder-slate-400 focus:outline-indigo-500 focus:bg-white ${
+                    theme === "dark"
+                      ? "bg-slate-900 border-slate-800 text-slate-100 focus:text-slate-900"
+                      : "bg-slate-50 border-slate-200 text-slate-700"
+                  }`}
                 />
               </div>
             )}
+
+            {/* Quick Analytics Summary Panel */}
+            {layerStats && (layerStats.totalHH !== null || layerStats.totalPopulation !== null) && (
+              <div className={`border p-3 rounded-lg space-y-2 transition-colors duration-300 ${
+                theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-100 text-slate-700"
+              }`}>
+                <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block font-mono flex items-center gap-1">
+                  <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
+                  Aggregate Estimations
+                </span>
+                <div className="grid grid-cols-2 gap-3 pt-0.5">
+                  {layerStats.totalHH !== null && (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-400 font-semibold leading-none">Total Households:</span>
+                      <strong className={`text-sm font-black font-mono mt-1 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{layerStats.totalHH.toLocaleString()}</strong>
+                    </div>
+                  )}
+                  {layerStats.totalPopulation !== null && (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-400 font-semibold leading-none">Total Population:</span>
+                      <strong className={`text-sm font-black font-mono mt-1 ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{layerStats.totalPopulation.toLocaleString()}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
+        )}
+
+        {/* Dynamic Category Layer Tabs */}
+        {activeLayersWithData.length > 0 && (
+          <div className="flex gap-1 overflow-x-auto pb-1 select-none pt-0.5 scrollbar-thin">
+            {activeLayersWithData.map((layer) => {
+              const isActive = layer.id === currentLayer?.id;
+              return (
+                <button
+                  key={layer.id}
+                  onClick={() => setActiveLayerId(layer.id)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap transition cursor-pointer shrink-0 border ${
+                    isActive
+                      ? "bg-indigo-600 border-indigo-500 text-white font-extrabold shadow-sm"
+                      : theme === "dark"
+                        ? "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                        : "bg-slate-100 border-slate-200/80 text-slate-600 hover:bg-slate-200/50"
+                  }`}
+                >
+                  {layer.name}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
       {/* Stats Counter Bar */}
       {currentLayer && (
-        <div className="px-4 py-2 bg-slate-50/50 border-b border-slate-200 flex justify-between text-[11px] items-center text-slate-500 font-medium font-mono">
-          <span>Total: <strong className="text-slate-800">{layerFeatures.length}</strong></span>
-          <span>Filtered: <strong className="text-slate-800">{filteredFeatures.length}</strong></span>
-          <span>Selected: <strong className="text-indigo-600">{selectedFeature && selectedFeature.properties.layer === currentLayer.name ? "1" : "0"}</strong></span>
+        <div className={`px-4 py-2 border-b flex justify-between text-[11px] items-center font-mono transition-colors duration-300 ${
+          theme === "dark" ? "bg-slate-950/40 border-slate-800/80 text-slate-400" : "bg-slate-50/50 border-slate-200 text-slate-500"
+        }`}>
+          <span>Total: <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>{layerFeatures.length}</strong></span>
+          <span>Filtered: <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>{filteredFeatures.length}</strong></span>
+          <span>Selected: <strong className="text-indigo-400">{selectedFeature && selectedFeature.properties.layer === currentLayer.name ? "1" : "0"}</strong></span>
         </div>
       )}
 
       {/* Main Feature List / Attributes Table */}
-      <div className="flex-1 overflow-auto min-h-0 bg-white relative">
+      <div className={`flex-1 overflow-auto min-h-0 relative transition-colors duration-300 ${
+        theme === "dark" ? "bg-slate-900/40" : "bg-white"
+      }`}>
         {!currentLayer ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400">
             <AlertTriangle className="w-8 h-8 text-amber-500 mb-2 stroke-[1.5]" />
-            <p className="text-xs font-semibold text-slate-500">No GIS layers are currently active.</p>
+            <p className={`text-xs font-semibold ${theme === "dark" ? "text-slate-300" : "text-slate-550"}`}>No GIS layers are currently active.</p>
             <p className="text-[10px] text-slate-400 mt-1">Please enable at least one layer checkbox in the left sidebar to see feature attribute rows.</p>
           </div>
         ) : filteredFeatures.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400">
             <Search className="w-8 h-8 text-slate-300 mb-2" />
             <p className="text-xs font-semibold">No features found.</p>
-            <p className="text-[10px] mt-0.5 leading-relaxed">No matching spatial attributes found for <strong className="text-slate-500">"{searchTerm}"</strong> in {currentLayer.name}.</p>
+            <p className="text-[10px] mt-0.5 leading-relaxed">No matching spatial attributes found for <strong className={theme === "dark" ? "text-slate-300" : "text-slate-550"}>"{searchTerm}"</strong> in {currentLayer.name}.</p>
           </div>
         ) : (
           <table className="w-full text-left text-xs border-collapse font-sans">
             <thead>
-              <tr className="bg-slate-100/60 sticky top-0 border-b border-slate-200 shadow-sm z-10 text-slate-600 font-bold leading-tight select-none">
-                <th className="py-2.5 px-3 whitespace-nowrap text-center text-[10px] w-12 border-r border-slate-200 uppercase tracking-widest bg-slate-100">#</th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-[10px] w-24 border-r border-slate-200 uppercase tracking-widest bg-slate-100">Locate</th>
+              <tr className={`sticky top-0 border-b shadow-sm z-10 font-bold leading-tight select-none ${
+                theme === "dark" ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-100/60 border-slate-200 text-slate-600"
+              }`}>
+                <th className={`py-2.5 px-3 whitespace-nowrap text-center text-[10px] w-12 border-r uppercase tracking-widest ${
+                  theme === "dark" ? "border-slate-800 bg-slate-950" : "border-slate-200 bg-slate-100"
+                }`}>#</th>
+                <th className={`py-2.5 px-3 whitespace-nowrap text-[10px] w-24 border-r uppercase tracking-widest ${
+                  theme === "dark" ? "border-slate-800 bg-slate-950" : "border-slate-200 bg-slate-100"
+                }`}>Locate</th>
                 {columnKeys.map((key) => (
-                  <th key={key} className="py-2.5 px-3 border-r border-slate-200 uppercase tracking-wider font-mono text-[10px] bg-slate-100">
+                  <th key={key} className={`py-2.5 px-3 border-r uppercase tracking-wider font-mono text-[10px] ${
+                    theme === "dark" ? "border-slate-800 bg-slate-950" : "border-slate-200 bg-slate-100"
+                  }`}>
                     {key}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className={`divide-y font-medium ${
+              theme === "dark" ? "divide-slate-800/60" : "divide-slate-100"
+            }`}>
               {paginatedFeatures.map((feat, itemIndex) => {
                 const index = (currentPage - 1) * 50 + itemIndex;
                 const isSelected = selectedFeature?.id === feat.id;
-                const nameValue = feat.properties.name || feat.properties.Name || feat.properties.village_name || feat.properties.Village_Name || `Feature #${index + 1}`;
 
                 return (
                   <tr
                     key={feat.id}
                     onClick={() => handleRowClick(feat)}
-                    className={`group cursor-pointer text-slate-700 transition duration-150 ${
+                    className={`group cursor-pointer transition duration-150 ${
                       isSelected 
-                        ? "bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-l-2 border-l-indigo-600 border-b border-indigo-200" 
-                        : "hover:bg-slate-50 border-l-2 border-l-transparent"
+                        ? theme === "dark"
+                          ? "bg-indigo-950/40 hover:bg-indigo-900/40 text-indigo-200 border-l-2 border-l-indigo-500 border-b border-indigo-900"
+                          : "bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-l-2 border-l-indigo-600 border-b border-indigo-200" 
+                        : theme === "dark"
+                          ? "text-slate-300 hover:bg-slate-800/40 border-l-2 border-l-transparent"
+                          : "text-slate-700 hover:bg-slate-50 border-l-2 border-l-transparent"
                     }`}
                   >
-                    <td className="py-2.5 px-3 text-center border-r border-slate-100 font-mono text-[10px] text-slate-400 bg-slate-50/50">
+                    <td className={`py-2.5 px-3 text-center border-r font-mono text-[10px] text-slate-400 ${
+                      theme === "dark" ? "border-slate-800/40 bg-slate-950/20" : "border-slate-100 bg-slate-50/50"
+                    }`}>
                       {index + 1}
                     </td>
-                    <td className="py-1.5 px-3 border-r border-slate-100">
+                    <td className={`py-1.5 px-3 border-r ${
+                      theme === "dark" ? "border-slate-800/40" : "border-slate-100"
+                    }`}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRowClick(feat);
                         }}
                         title="Zoom directly to this feature"
-                        className="py-1 px-1.5 rounded-md border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/50 flex items-center justify-center gap-1 font-semibold text-[10px] w-full transition-colors"
+                        className={`py-1 px-1.5 rounded-md border flex items-center justify-center gap-1 font-semibold text-[10px] w-full transition-colors cursor-pointer ${
+                          theme === "dark"
+                            ? "border-slate-800 text-slate-400 hover:text-indigo-400 hover:border-indigo-800 hover:bg-indigo-950/40"
+                            : "border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/50"
+                        }`}
                       >
                         <MapPin className="w-3 h-3 text-indigo-500 group-hover:scale-110 transition-transform" />
                         <span>Zoom</span>
@@ -316,7 +405,9 @@ export default function AttributeTable({
                     {columnKeys.map((k) => {
                       const val = feat.properties[k];
                       return (
-                        <td key={k} className="py-2.5 px-3 border-r border-slate-100 whitespace-nowrap max-w-[150px] truncate" title={String(val ?? "")}>
+                        <td key={k} className={`py-2.5 px-3 border-r whitespace-nowrap max-w-[150px] truncate ${
+                          theme === "dark" ? "border-slate-800/40" : "border-slate-100"
+                        }`} title={String(val ?? "")}>
                           {val !== undefined && val !== null ? (
                             typeof val === "number" ? (
                               Number.isInteger(val) ? val : val.toFixed(4)
@@ -339,23 +430,29 @@ export default function AttributeTable({
 
       {/* Pagination Controls Footer Bar */}
       {currentLayer && filteredFeatures.length > 50 && (
-        <div className="px-4 py-2 bg-slate-50 border-t border-b border-slate-200 flex items-center justify-between text-xs font-semibold select-none text-slate-600 shrink-0">
-          <span className="text-[11px] text-slate-500">
-            Showing <strong className="text-slate-800">{(currentPage - 1) * 50 + 1}</strong> to{" "}
-            <strong className="text-slate-800">
+        <div className={`px-4 py-2 border-t border-b flex items-center justify-between text-xs font-semibold select-none shrink-0 transition-colors duration-300 ${
+          theme === "dark" ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+        }`}>
+          <span className={`text-[11px] ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+            Showing <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>{(currentPage - 1) * 50 + 1}</strong> to{" "}
+            <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>
               {Math.min(currentPage * 50, filteredFeatures.length)}
             </strong>{" "}
-            of <strong className="text-slate-800">{filteredFeatures.length}</strong>
+            of <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>{filteredFeatures.length}</strong>
           </span>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white transition cursor-pointer text-[10px]"
+              className={`px-2 py-0.5 rounded border transition cursor-pointer text-[10px] ${
+                theme === "dark"
+                  ? "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-850 disabled:bg-slate-950 disabled:opacity-30"
+                  : "border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white"
+              }`}
             >
               Prev
             </button>
-            <span className="text-[10px] text-slate-500 font-mono">
+            <span className={`text-[10px] font-mono ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
               Page {currentPage} / {Math.ceil(filteredFeatures.length / 50)}
             </span>
             <button
@@ -365,7 +462,11 @@ export default function AttributeTable({
                 )
               }
               disabled={currentPage >= Math.ceil(filteredFeatures.length / 50)}
-              className="px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white transition cursor-pointer text-[10px]"
+              className={`px-2 py-0.5 rounded border transition cursor-pointer text-[10px] ${
+                theme === "dark"
+                  ? "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-850 disabled:bg-slate-950 disabled:opacity-30"
+                  : "border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white"
+              }`}
             >
               Next
             </button>
@@ -374,10 +475,12 @@ export default function AttributeTable({
       )}
 
       {/* MongoDB Spatial Database Status Widget */}
-      <div className="border-t border-slate-200 bg-slate-900 text-slate-100 shadow-inner select-none font-sans flex flex-col shrink-0">
+      <div className={`border-t shadow-inner select-none font-sans flex flex-col shrink-0 transition-colors duration-300 ${
+        theme === "dark" ? "border-slate-850 bg-slate-950 text-slate-100" : "border-slate-200 bg-slate-900 text-slate-100"
+      }`}>
         <button
           onClick={() => setIsStatusCollapsed(!isStatusCollapsed)}
-          className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-slate-850/40 transition-colors focus:outline-none"
+          className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-slate-800/40 transition-colors focus:outline-none"
         >
           <div className="flex items-center gap-1.5 font-semibold text-xs text-indigo-300">
             <Database className="w-4 h-4 text-emerald-400 animate-pulse" />

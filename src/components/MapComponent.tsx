@@ -275,16 +275,21 @@ export default function MapComponent({
       if (existingLayer) {
         // Update styling of existing layer (if color, opacity, or weight changed)
         try {
-          const isPolygon = layerConf.type === "polygon";
-          const isLine = layerConf.type === "linestring";
-          const shouldFill = !isPolygon && !isLine;
-          existingLayer.setStyle({
-            color: layerConf.color,
-            fillColor: shouldFill ? (layerConf.fillColor || layerConf.color) : "transparent",
-            fill: shouldFill,
-            weight: layerConf.weight,
-            opacity: layerConf.opacity,
-            fillOpacity: shouldFill ? (layerConf.fillOpacity * layerConf.opacity) : 0,
+          existingLayer.setStyle((feature: any) => {
+            const geomType = feature?.geometry?.type?.toLowerCase() || "";
+            const isLine = geomType.includes("line") || geomType.includes("string") || layerConf.type === "linestring";
+            const isPolygon = geomType.includes("polygon") || layerConf.type === "polygon";
+            // Polygons should fill, lines should NEVER fill
+            const shouldFill = isPolygon && !isLine;
+
+            return {
+              color: layerConf.color,
+              fillColor: shouldFill ? (layerConf.fillColor || layerConf.color) : "transparent",
+              fill: shouldFill,
+              weight: layerConf.weight,
+              opacity: layerConf.opacity,
+              fillOpacity: shouldFill ? (layerConf.fillOpacity * layerConf.opacity) : 0,
+            };
           });
         } catch (styleErr) {
           console.warn(`Could not update style for existing layer ${layerConf.name}:`, styleErr);
@@ -318,9 +323,12 @@ export default function MapComponent({
         const geoJsonLayer = L.geoJSON(geoJsonData, {
           interactive: measureMode === "none",
           style: (feature: any) => {
-            const isPolygon = layerConf.type === "polygon";
-            const isLine = layerConf.type === "linestring";
-            const shouldFill = !isPolygon && !isLine;
+            const geomType = feature?.geometry?.type?.toLowerCase() || "";
+            const isLine = geomType.includes("line") || geomType.includes("string") || layerConf.type === "linestring";
+            const isPolygon = geomType.includes("polygon") || layerConf.type === "polygon";
+            // Polygons should fill, lines should NEVER fill
+            const shouldFill = isPolygon && !isLine;
+
             return {
               color: layerConf.color,
               fillColor: shouldFill ? (layerConf.fillColor || layerConf.color) : "transparent",
