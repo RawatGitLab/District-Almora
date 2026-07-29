@@ -233,9 +233,9 @@ export default function Sidebar({
             )}
             {layer.type === "polygon" && (
               <span 
-                className="w-3.5 h-3.5 rounded border-2 shadow-inner inline-block shrink-0 bg-slate-700" 
+                className="w-3.5 h-3.5 rounded border-2 shadow-inner inline-block shrink-0 bg-transparent" 
                 style={{ 
-                  borderColor: layer.color
+                  borderColor: layer.color || "#000000"
                 }}
               />
             )}

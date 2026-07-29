@@ -282,7 +282,7 @@ export default function MapComponent({
             
             if (isPolygon && !isLine) {
               return {
-                color: "#ffffff",
+                color: layerConf.color || "#000000",
                 fillColor: "transparent",
                 fill: false,
                 weight: layerConf.weight,
@@ -341,7 +341,7 @@ export default function MapComponent({
 
             if (isPolygon && !isLine) {
               return {
-                color: "#ffffff",
+                color: layerConf.color || "#000000",
                 fillColor: "transparent",
                 fill: false,
                 weight: layerConf.weight,

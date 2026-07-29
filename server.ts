@@ -201,7 +201,13 @@ app.get("/api/layers", async (req, res) => {
       let fillOpacity = 0.4;
 
       const lowerName = name.toLowerCase();
-      if (lowerName.includes("village")) {
+      if (type === "polygon") {
+        color = "#000000"; // All polygon layers are hollow with black boundary
+        fillColor = "transparent";
+        fillOpacity = 0;
+        weight = 2.0;
+        opacity = 0.9;
+      } else if (lowerName.includes("village")) {
         color = "#ec4899"; // bright pink villages selector
         fillColor = "#f472b6";
         weight = 1.5;
@@ -212,24 +218,6 @@ app.get("/api/layers", async (req, res) => {
         weight = 2.5;
         opacity = 1.0;
         fillOpacity = 0.1;
-      } else if (lowerName.includes("district") || lowerName.includes("boundary")) {
-        color = "#a16207"; // Golden brown outline
-        fillColor = "#fbbf24"; // Mustard polygon fill
-        weight = 2.5;
-        opacity = 0.9;
-        fillOpacity = 0.55; // Solid background core
-      } else if (lowerName.includes("block")) {
-        color = "#c2410c"; // Rust dark
-        fillColor = "#fdba74"; // Peach block
-        weight = 2.0;
-        opacity = 0.8;
-        fillOpacity = 0.25;
-      } else if (lowerName.includes("tehsil") || lowerName.includes("tahsil")) {
-        color = "#15803d"; // Deep forest green
-        fillColor = "#86efac"; // Mint tehsil
-        weight = 2.0;
-        opacity = 0.85;
-        fillOpacity = 0.3;
       } else {
         const hue = (index * 137.5) % 360; 
         color = `hsl(${hue}, 70%, 45%)`;
