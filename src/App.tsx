@@ -345,7 +345,7 @@ export default function App() {
                 Live Server
               </span>
             </div>
-            <h2 className="text-base font-bold tracking-tight text-slate-200">District Almora</h2>
+            <h2 className="text-base font-bold tracking-tight text-slate-200">District Almora [Code: 064]</h2>
           </div>
         </div>
 
