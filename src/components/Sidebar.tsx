@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Layers, Globe, Sliders, CheckSquare, Square, Check, RotateCcw, Database, ChevronDown, ChevronRight, Minimize2, Maximize2, Ruler, Trash2, Undo, GraduationCap, BookOpen, Heart, Shield, Waves, Compass, Loader2 } from "lucide-react";
+import { Layers, Globe, Sliders, CheckSquare, Square, Check, RotateCcw, Database, ChevronDown, ChevronRight, Minimize2, Maximize2, Ruler, Trash2, Undo, GraduationCap, BookOpen, Heart, Shield, Waves, Compass, Loader2, Vote } from "lucide-react";
 import { LayerConfig, BaseMap } from "../types";
 
 interface SidebarProps {
@@ -60,7 +60,12 @@ const ORIGINAL_LAYERS = new Set([
   "police-outpost",
   "police-stations",
   "police-thana-headquaters",
-  "village-under-police-jurisdiction"
+  "village-under-police-jurisdiction",
+  "polling_booth",
+  "polling-booth",
+  "assembly-constituency",
+  "assembly_constituency",
+  "election"
 ]);
 
 
@@ -93,6 +98,7 @@ export default function Sidebar({
   const [isHealthCollapsed, setIsHealthCollapsed] = useState<boolean>(true);
   const [isPoliceCollapsed, setIsPoliceCollapsed] = useState<boolean>(true);
   const [isRiverCollapsed, setIsRiverCollapsed] = useState<boolean>(true);
+  const [isElectionCollapsed, setIsElectionCollapsed] = useState<boolean>(true);
 
   const anyLayerActive = useMemo(() => {
     return layers.some((l) => l.visible);
@@ -107,8 +113,9 @@ export default function Sidebar({
       const isHealth = lower.includes("health");
       const isRiver = lower.includes("river");
       const isEducation = lower.includes("education") || lower.includes("school") || lower.includes("collage");
+      const isElection = lower.includes("election") || lower.includes("polling") || lower.includes("booth") || lower.includes("constituency") || lower.includes("assembly");
       
-      if (isPolice || isHealth || isEducation || isRiver) return false;
+      if (isPolice || isHealth || isEducation || isRiver || isElection) return false;
 
       return (
         lower.includes("boundary") ||
@@ -154,6 +161,19 @@ export default function Sidebar({
     });
   }, [layers]);
 
+  const electionLayers = useMemo(() => {
+    return layers.filter(layer => {
+      const lower = layer.name.toLowerCase();
+      return (
+        lower.includes("election") ||
+        lower.includes("polling") ||
+        lower.includes("booth") ||
+        lower.includes("constituency") ||
+        lower.includes("assembly")
+      );
+    });
+  }, [layers]);
+
   const otherLayers = useMemo(() => {
     return layers.filter(layer => {
       const lower = layer.name.toLowerCase();
@@ -166,6 +186,13 @@ export default function Sidebar({
         lower.includes("school") ||
         lower.includes("collage")
       );
+      const isElection = (
+        lower.includes("election") ||
+        lower.includes("polling") ||
+        lower.includes("booth") ||
+        lower.includes("constituency") ||
+        lower.includes("assembly")
+      );
 
       const isAdministrative = (
         lower.includes("boundary") ||
@@ -177,15 +204,15 @@ export default function Sidebar({
         lower.includes("thans")
       );
 
-      if (isPolice || isHealth || isRiver || isEducation || isAdministrative) {
+      if (isPolice || isHealth || isRiver || isEducation || isAdministrative || isElection) {
         return false;
       }
 
-      // If it is not one of the original 33 layers, it is a custom uploaded layer.
+      // If it is not one of the original layers, it is a custom uploaded layer.
       // Any uploaded layer should show in Other Layers!
       if (!ORIGINAL_LAYERS.has(lower)) return true;
 
-      return !isAdministrative && !isEducation && !isHealth && !isPolice && !isRiver;
+      return !isAdministrative && !isEducation && !isHealth && !isPolice && !isRiver && !isElection;
     });
   }, [layers]);
 
@@ -675,6 +702,46 @@ export default function Sidebar({
                       </div>
                     ) : (
                       riverLayers.map((layer) => renderLayerItem(layer))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Collapsible Election Layer Section */}
+              <div className={`border rounded-lg overflow-hidden shadow-sm transition-colors duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-slate-900/40" : "border-slate-200 bg-slate-50/30"
+              }`}>
+                <button
+                  onClick={() => setIsElectionCollapsed(!isElectionCollapsed)}
+                  className={`w-full flex items-center justify-between p-2.5 transition-colors text-left font-sans focus:outline-none border-b cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-slate-950/40 hover:bg-slate-800 border-slate-800/80 text-white"
+                      : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200/60 text-slate-850"
+                  }`}
+                >
+                  <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-200" : "text-slate-700"
+                  }`}>
+                    <Vote className="w-3.5 h-3.5 text-amber-500" />
+                    ELECTION ({electionLayers.length})
+                  </span>
+                  {isElectionCollapsed ? (
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                  )}
+                </button>
+                
+                {!isElectionCollapsed && (
+                  <div className={`divide-y max-h-96 overflow-y-auto transition-colors duration-300 ${
+                    theme === "dark" ? "bg-slate-900/60 divide-slate-800/60" : "bg-white divide-slate-100"
+                  }`}>
+                    {electionLayers.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                        No election layers loaded.
+                      </div>
+                    ) : (
+                      electionLayers.map((layer) => renderLayerItem(layer))
                     )}
                   </div>
                 )}

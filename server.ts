@@ -124,7 +124,9 @@ function determineGeometryType(layerName: string): "point" | "linestring" | "pol
     lower.includes("tehsil") || 
     lower.includes("tahsil") ||
     lower.includes("kotwali") ||
-    lower.includes("thans")
+    lower.includes("thans") ||
+    lower.includes("constituency") ||
+    lower.includes("assembly")
   ) {
     return "polygon";
   }
@@ -156,7 +158,10 @@ function determineGeometryType(layerName: string): "point" | "linestring" | "pol
     lower.includes("headquater") || 
     lower.includes("barriers") || 
     lower.includes("station") || 
-    lower.includes("building")
+    lower.includes("building") ||
+    lower.includes("polling") ||
+    lower.includes("booth") ||
+    lower.includes("election")
   ) {
     return "point";
   }
@@ -207,6 +212,11 @@ app.get("/api/layers", async (req, res) => {
         fillOpacity = 0;
         weight = 2.0;
         opacity = 0.9;
+      } else if (lowerName.includes("booth") || lowerName.includes("polling") || lowerName.includes("election")) {
+        color = "#d97706"; // Amber for election points / polling booths
+        fillColor = "#f59e0b";
+        weight = 1.5;
+        opacity = 0.95;
       } else if (lowerName.includes("village")) {
         color = "#ec4899"; // bright pink villages selector
         fillColor = "#f472b6";
