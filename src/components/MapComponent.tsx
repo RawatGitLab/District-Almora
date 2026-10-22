@@ -363,11 +363,21 @@ export default function MapComponent({
             };
           },
           pointToLayer: (feature: any, latlng: L.LatLng) => {
+            const lowerName = layerConf.name.toLowerCase();
+            let radius = 3;
+            if (lowerName.includes("booth") || lowerName.includes("polling") || lowerName.includes("election")) {
+              radius = 2.5;
+            } else if (lowerName.includes("village")) {
+              radius = 2.5;
+            } else {
+              radius = 3.5;
+            }
+
             return L.circleMarker(latlng, {
-              radius: layerConf.name.toLowerCase().includes("village") ? 4.5 : 6,
+              radius: radius,
               color: "#ffffff",
               fillColor: layerConf.color,
-              weight: 1.2,
+              weight: 0.8,
               opacity: 1,
               fillOpacity: layerConf.opacity,
             });

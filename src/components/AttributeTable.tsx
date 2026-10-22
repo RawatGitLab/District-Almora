@@ -11,7 +11,41 @@ interface AttributeTableProps {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   onRefresh?: () => void;
+  activeLayerId?: string | null;
+  onActiveLayerChange?: (layerId: string) => void;
 }
+
+const normalizeLayerString = (str: string) => {
+  return str.toLowerCase().replace(/[-_\s]+/g, " ").trim();
+};
+
+export const isFeatureInLayer = (feature: GisFeature, layer: LayerConfig): boolean => {
+  if (!feature.properties) return false;
+  const rawLayer = feature.properties.layer ?? feature.properties.Layer ?? feature.properties.LAYER;
+  if (!rawLayer) return false;
+
+  const rawStr = String(rawLayer);
+  if (rawStr === layer.name || rawStr === layer.id) return true;
+
+  const normRaw = normalizeLayerString(rawStr);
+  const normName = normalizeLayerString(layer.name);
+  const normId = normalizeLayerString(layer.id);
+
+  if (normRaw === normName || normRaw === normId) return true;
+
+  // Specific aliases in Almora spatial database
+  if (normName.includes("district") && normRaw.includes("district")) return true;
+  if (normName.includes("block") && normRaw.includes("block")) return true;
+  if (normName.includes("tehsil") && normRaw.includes("tehsil")) return true;
+  if (normName.includes("booth") && normRaw.includes("booth")) return true;
+  if (normName.includes("assembly") && normRaw.includes("assembly")) return true;
+  if (normName.includes("school") && normRaw.includes("school")) return true;
+  if (normName.includes("hospital") && normRaw.includes("hospital")) return true;
+  if (normName.includes("police") && normRaw.includes("police")) return true;
+  if (normName.includes("river") && normRaw.includes("river")) return true;
+
+  return false;
+};
 
 export default function AttributeTable({
   theme = "light",
@@ -21,58 +55,54 @@ export default function AttributeTable({
   onFeatureSelect,
   isCollapsed,
   setIsCollapsed,
-  onRefresh
+  onRefresh,
+  activeLayerId,
+  onActiveLayerChange
 }: AttributeTableProps) {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isStatusCollapsed, setIsStatusCollapsed] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [internalActiveLayerId, setInternalActiveLayerId] = useState<string>("");
 
-  // Get active layers that have features
-  const activeLayersWithData = useMemo(() => {
-    return layers.filter(
-      (layer) =>
-        layer.visible &&
-        features.some(
-          (f) =>
-            f.properties &&
-            (f.properties.layer === layer.name ||
-              (layer.id === "0-District-Boundary" && f.properties.layer === "District Boundary") ||
-              (layer.id === "1-Block-Boundary" && f.properties.layer === "Block Boundary") ||
-              (layer.id === "2-Tehsil-Boundary" && f.properties.layer === "Tehsil Boundary"))
-        )
-    );
-  }, [layers, features]);
+  // All currently active (ticked/visible) layers
+  const activeLayers = useMemo(() => {
+    return layers.filter((layer) => layer.visible);
+  }, [layers]);
 
-  // Current selected active layer tab
-  const [activeLayerId, setActiveLayerId] = useState<string>("");
-
-  const currentLayer = useMemo(() => {
-    if (activeLayersWithData.length === 0) return null;
-    const found = activeLayersWithData.find((l) => l.id === activeLayerId);
-    return found || activeLayersWithData[0];
-  }, [activeLayersWithData, activeLayerId]);
-
-  // Sync activeLayerId if previous one becomes inactive
+  // Synchronize internal state with activeLayerId prop from parent
   useEffect(() => {
-    if (currentLayer && currentLayer.id !== activeLayerId) {
-      setActiveLayerId(currentLayer.id);
+    if (activeLayerId) {
+      setInternalActiveLayerId(activeLayerId);
     }
-  }, [currentLayer, activeLayerId]);
+  }, [activeLayerId]);
+
+  // Identify current layer: prioritize activeLayerId/internalActiveLayerId, then fall back to latest or first visible layer
+  const currentLayer = useMemo(() => {
+    if (activeLayers.length === 0) return null;
+    const targetId = activeLayerId || internalActiveLayerId;
+    if (targetId) {
+      const found = activeLayers.find((l) => l.id === targetId || l.name === targetId);
+      if (found) return found;
+    }
+    return activeLayers[activeLayers.length - 1] || activeLayers[0];
+  }, [activeLayers, activeLayerId, internalActiveLayerId]);
+
+  // Sync internal state when currentLayer updates
+  useEffect(() => {
+    if (currentLayer && currentLayer.id !== internalActiveLayerId) {
+      setInternalActiveLayerId(currentLayer.id);
+    }
+  }, [currentLayer]);
+
+  const handleSelectLayerTab = (layerId: string) => {
+    setInternalActiveLayerId(layerId);
+    onActiveLayerChange?.(layerId);
+  };
 
   // Filter features for current active layer
   const layerFeatures = useMemo(() => {
     if (!currentLayer) return [];
-    return features.filter((f) => {
-      if (!f.properties) return false;
-      const layerProp = f.properties.layer;
-      
-      // Handle MongoDB specific matching
-      if (currentLayer.id === "0-District-Boundary" && layerProp === "District Boundary") return true;
-      if (currentLayer.id === "1-Block-Boundary" && layerProp === "Block Boundary") return true;
-      if (currentLayer.id === "2-Tehsil-Boundary" && layerProp === "Tehsil Boundary") return true;
-      
-      return layerProp === currentLayer.name;
-    });
+    return features.filter((f) => isFeatureInLayer(f, currentLayer));
   }, [features, currentLayer]);
 
   // Extract schema columns dynamically based on available attributes in features
@@ -267,15 +297,16 @@ export default function AttributeTable({
         )}
 
         {/* Dynamic Category Layer Tabs */}
-        {activeLayersWithData.length > 0 && (
-          <div className="flex gap-1 overflow-x-auto pb-1 select-none pt-0.5 scrollbar-thin">
-            {activeLayersWithData.map((layer) => {
+        {activeLayers.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 select-none pt-0.5 scrollbar-thin">
+            {activeLayers.map((layer) => {
               const isActive = layer.id === currentLayer?.id;
+              const count = features.filter((f) => isFeatureInLayer(f, layer)).length;
               return (
                 <button
                   key={layer.id}
-                  onClick={() => setActiveLayerId(layer.id)}
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap transition cursor-pointer shrink-0 border ${
+                  onClick={() => handleSelectLayerTab(layer.id)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap transition cursor-pointer shrink-0 border flex items-center gap-1.5 ${
                     isActive
                       ? "bg-indigo-600 border-indigo-500 text-white font-extrabold shadow-sm"
                       : theme === "dark"
@@ -283,7 +314,20 @@ export default function AttributeTable({
                         : "bg-slate-100 border-slate-200/80 text-slate-600 hover:bg-slate-200/50"
                   }`}
                 >
-                  {layer.name}
+                  <span>{layer.name}</span>
+                  {layer.loading ? (
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                  ) : count > 0 ? (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isActive 
+                        ? "bg-indigo-800/80 text-indigo-100" 
+                        : theme === "dark"
+                          ? "bg-slate-800 text-slate-300"
+                          : "bg-slate-200 text-slate-700"
+                    }`}>
+                      {count}
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -298,7 +342,7 @@ export default function AttributeTable({
         }`}>
           <span>Total: <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>{layerFeatures.length}</strong></span>
           <span>Filtered: <strong className={theme === "dark" ? "text-slate-200" : "text-slate-800"}>{filteredFeatures.length}</strong></span>
-          <span>Selected: <strong className="text-indigo-400">{selectedFeature && selectedFeature.properties.layer === currentLayer.name ? "1" : "0"}</strong></span>
+          <span>Selected: <strong className="text-indigo-400">{selectedFeature && selectedFeature.properties && isFeatureInLayer(selectedFeature, currentLayer) ? "1" : "0"}</strong></span>
         </div>
       )}
 
@@ -312,11 +356,25 @@ export default function AttributeTable({
             <p className={`text-xs font-semibold ${theme === "dark" ? "text-slate-300" : "text-slate-550"}`}>No GIS layers are currently active.</p>
             <p className="text-[10px] text-slate-400 mt-1">Please enable at least one layer checkbox in the left sidebar to see feature attribute rows.</p>
           </div>
+        ) : currentLayer.loading ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+            <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
+            <p className={`text-xs font-bold ${theme === "dark" ? "text-slate-200" : "text-slate-700"}`}>
+              Fetching attributes for {currentLayer.name}...
+            </p>
+            <p className="text-[10px] text-slate-400 mt-1 max-w-xs leading-relaxed">
+              Querying MongoDB Atlas collection and downloading geographic feature properties.
+            </p>
+          </div>
         ) : filteredFeatures.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400">
             <Search className="w-8 h-8 text-slate-300 mb-2" />
             <p className="text-xs font-semibold">No features found.</p>
-            <p className="text-[10px] mt-0.5 leading-relaxed">No matching spatial attributes found for <strong className={theme === "dark" ? "text-slate-300" : "text-slate-550"}>"{searchTerm}"</strong> in {currentLayer.name}.</p>
+            <p className="text-[10px] mt-0.5 leading-relaxed">
+              {searchTerm.trim() 
+                ? <>No matching spatial attributes found for <strong className={theme === "dark" ? "text-slate-300" : "text-slate-550"}>"{searchTerm}"</strong> in {currentLayer.name}.</>
+                : <>No feature records found in database for layer <strong className={theme === "dark" ? "text-slate-300" : "text-slate-550"}>{currentLayer.name}</strong>.</>}
+            </p>
           </div>
         ) : (
           <table className="w-full text-left text-xs border-collapse font-sans">

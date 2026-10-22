@@ -248,7 +248,7 @@ export default function Sidebar({
             {/* Legend Badge representation */}
             {layer.type === "point" && (
               <span 
-                className="w-3 h-3 rounded-full border border-white inline-block shadow-sm shrink-0" 
+                className="w-2 h-2 rounded-full border border-white inline-block shadow-sm shrink-0" 
                 style={{ backgroundColor: layer.color }}
               />
             )}
